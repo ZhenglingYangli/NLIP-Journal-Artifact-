@@ -14,5 +14,5 @@ set -euo pipefail
 cd "$AIJ_RUNNER_DIR"
 "$AIJ_PYTHON" run_campaign_task.py --campaign "$AIJ_CAMPAIGN" --index "$SLURM_ARRAY_TASK_ID" &
 batch_pid=$!
-trap 'kill -TERM "$batch_pid" 2>/dev/null || true; wait "$batch_pid" || true; exit 0' TERM INT
+trap 'kill -TERM "$batch_pid" 2>/dev/null || true; wait "$batch_pid" || true; exit 143' TERM INT
 wait "$batch_pid"

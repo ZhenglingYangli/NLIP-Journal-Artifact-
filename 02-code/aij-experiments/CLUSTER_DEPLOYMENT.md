@@ -66,6 +66,7 @@ git clone https://github.com/ZhenglingYangli/NLIP-Journal-Artifact-.git
 cd NLIP-Journal-Artifact-/02-code/aij-experiments
 python3.9 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m pip install -r requirements-analysis.txt
 export AIJ_PYTHON="$PWD/.venv/bin/python"
 export AIJ_RUNNER_DIR="$PWD"
 
@@ -93,9 +94,10 @@ sbatch --export=ALL run_cluster_smoke.sh
 # 小实例验收通过后，仅生成正式计划。
 "$AIJ_PYTHON" prepare_campaign.py --config config.cluster.json \
   --output ../../04-results/aij-main-config
-# 以下命令才提交 61 个配置作业。
+# 提交 61 个配置作业，并登记一个 afterany 依赖的汇总分析作业。
 bash ../../04-results/aij-main-config/submit.sh
-"$AIJ_PYTHON" summarize_campaign.py ../../04-results/aij-main-config
+# 可随时手动重算进度表和图；未完成项保留 PENDING。
+"$AIJ_PYTHON" analyze_campaign.py ../../04-results/aij-main-config
 
 # 原定额外分解对照独立生成，共 2 个配置、1020 次运行。
 "$AIJ_PYTHON" prepare_campaign.py --config config.cluster.json \
@@ -106,6 +108,52 @@ bash ../../04-results/aij-main-config/submit.sh
 `campaign.json` 包含目标机器绝对路径；必须在集群重新生成，不能复制 Ubuntu 生成的计划直接提交。
 `config.cluster.json` 是本机解析结果，Git 忽略它；修改求解代码则应提交并重新生成计划。
 运行中的正式批次不要 `git pull`；待批次结束或停止后再更新。
+
+## 结果落盘与分析
+
+以 `04-results/aij-main-config` 为本批根目录，所有实例和分析文件都写入此处：
+
+```text
+aij-main-config/
+├── campaign.json                  # 本批配置、预算、代码版本及固定清单
+├── submit.sh                      # 配置数组及依赖分析作业的提交入口
+├── slurm-<array>_<index>.log       # 每配置作业日志
+├── analysis-<jobid>.log            # 汇总分析作业日志
+├── runs/<数据组-方法>/
+│   ├── run.json                   # 该配置环境与输入
+│   ├── jobs/<实例-方法>/
+│   │   ├── job.json
+│   │   ├── stdout.log
+│   │   └── result.json            # 状态、见证、精确目标、耗时和内存
+│   ├── results.csv
+│   └── summary.json
+├── results.csv                    # 按计划展开的全批长表
+├── summary.json
+├── sumup/NLIP_<数据组>_<方法>.csv  # 每配置表，保留旧表常用列
+└── analysis/
+    ├── config_summary.csv
+    ├── status_counts.csv
+    ├── pairwise.csv
+    ├── report.md
+    └── figures/accumulated-*.png、*.pdf
+```
+
+提交脚本在配置数组结束后自动运行分析作业（`afterany`），即使部分配置失败也汇总现有结果。
+汇总独立于求解 worker，不占用单实例的 3600 秒预算。绘图用无图形界面的 Agg 后端。
+续跑仍以同一 `submit.sh` 提交，必须等上一数组和分析作业停止；已保存结果跳过，未完成实例重启。
+分析读取 JSON 结果而非搜索日志中的 `>>>` 行，不挑选“最新目录”来混合不同批次。
+
+沿用旧实验的每配置 CSV、成功数/时间比较以及累计求解图形式；图中横轴为累计求解数，纵轴为秒。
+各数据组独立作图，另外生成 QPLIB＋Diverse SAT 合并图。SCIP 和新增基线均保留。
+旧脚本中的硬编码配置名、排除 SCIP 及把 Z3 当作真值的规则不用于当前实验。
+每配置 CSV 的 `TimeTotal`、`TimeForAnalysis` 均映射为当前协议的 `solve_wall_seconds`，包含启动、解析、编码与求解；验解时间另存。
+原日志未记录的读取耗时、TopW 等列留空，不编造为零。
+
+优化成功为 `OPTIMAL` 且原问题见证验解通过；SMT 的 SAT 要求验解通过，UNSAT 作为求解器报告的判定结果统计，不声称已有独立不可满足证明。
+所有成功记录还必须在求解时间预算内。FEASIBLE、UNSUPPORTED、TIMEOUT、OOM、ERROR、INVALID 等状态分列保留。
+PENDING 保留在计划分母中；未完成配置的 PAR-2 留空，全部完成后按本批求解预算两倍惩罚未成功记录（正式批次为 7200 秒）。
+`pairwise.csv` 按同数据组、同实例对齐，给出双方已运行数、共同成功数、各自独有成功数及共同成功上的时间比较。
+正式结论仍需对正式结果执行原问题与可用公开 oracle 的最终核对；环境小实例不会混入正式分析。
 
 ## 正式资源与当前验收边界
 

@@ -50,6 +50,8 @@ def main():
           'workers':a.workers,'concurrent_jobs':a.concurrent_jobs,'memory_gib':a.memory_gib,
           'configuration_jobs':len(tasks),'instance_runs':sum(len(t['job_ids']) for t in tasks),'tasks':tasks}
     plan['code_version']=git_identity(config['code_root'])
+    plan['config_snapshot']=config
+    plan['limits']=limits
     plan['runner_version']=git_identity(str(ROOT))
     plan['manifests']={f:(Path(config['manifest_root'])/d['manifest']).read_text().splitlines()
                        for f,d in config['families'].items()}
@@ -58,11 +60,18 @@ def main():
     if planpath.exists() and json.loads(planpath.read_text())!=plan:
         raise ValueError('existing campaign has different settings; keep its plan unchanged')
     planpath.write_text(json.dumps(plan,indent=2)+'\n')
-    command=['sbatch',f'--array=0-{len(tasks)-1}%{a.concurrent_jobs}',f'--cpus-per-task={a.workers}',
+    command=['sbatch','--parsable',f'--array=0-{len(tasks)-1}%{a.concurrent_jobs}',f'--cpus-per-task={a.workers}',
              f'--mem={a.memory_gib}G',f'--time={wall_hours//24}-{wall_hours%24:02d}:00:00',
              f'--output={output}/slurm-%A_%a.log',
              f'--export=ALL,AIJ_RUNNER_DIR={ROOT},AIJ_CAMPAIGN={output}',str(ROOT/'run_config_array.sh')]
-    (output/'submit.sh').write_text('#!/usr/bin/env bash\nset -euo pipefail\n: "${AIJ_PYTHON:?Set AIJ_PYTHON to the experiment interpreter}"\n'+shlex.join(command)+'\n')
+    analysis=['sbatch',f'--output={output}/analysis-%j.log',
+              f'--export=ALL,AIJ_RUNNER_DIR={ROOT},AIJ_CAMPAIGN={output}',str(ROOT/'run_campaign_analysis.sh')]
+    script='#!/usr/bin/env bash\nset -euo pipefail\n: "${AIJ_PYTHON:?Set AIJ_PYTHON to the experiment interpreter}"\n'
+    script+='"$AIJ_PYTHON" -c "import matplotlib"\n'
+    script+='array_id=$('+shlex.join(command)+')\narray_id=${array_id%%;*}\n'
+    script+='printf "Configuration array: %s\\n" "$array_id"\n'
+    script+='sbatch --dependency="afterany:$array_id" '+shlex.join(analysis[1:])+'\n'
+    (output/'submit.sh').write_text(script)
     print(json.dumps({k:plan[k] for k in ['profile','matrix','workers','concurrent_jobs','memory_gib','configuration_jobs','instance_runs']},indent=2))
     print('Prepared only. Submit with: bash '+shlex.quote(str(output/'submit.sh')))
 

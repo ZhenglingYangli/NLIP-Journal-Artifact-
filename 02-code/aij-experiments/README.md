@@ -64,6 +64,7 @@ MIPO 使用发布包的 `integer/txtfiles`，870 个文件转换到 `03-benchmar
 cd 02-code/aij-experiments
 python3.9 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m pip install -r requirements-analysis.txt
 # 如集群安装了完整 CPLEX，用对应完整 Python API 替代 Community Edition。
 export AIJ_PYTHON="$PWD/.venv/bin/python"
 
@@ -76,8 +77,8 @@ export AIJ_PYTHON="$PWD/.venv/bin/python"
 "$AIJ_PYTHON" prepare_campaign.py --output ../../04-results/aij-main-config
 # 集群路径、依赖和 CPLEX 完整许可证验收后，执行这一行才实际提交。
 bash ../../04-results/aij-main-config/submit.sh
-# 汇总整个主实验；未运行的任务保留为 PENDING。
-"$AIJ_PYTHON" summarize_campaign.py ../../04-results/aij-main-config
+# submit.sh 同时登记依赖分析作业；手动更新总表、配置表及累计图使用：
+"$AIJ_PYTHON" analyze_campaign.py ../../04-results/aij-main-config
 # 可选提速：准备阶段指定 --workers 28 --concurrent-jobs 4，最多 112 路，自动申请每作业 460G。
 # 原定分解对照：另用 --matrix decomposition --output ../../04-results/aij-decomposition-config。
 # 续跑：确认同一数组已停止后，重交同一 submit.sh；已完成记录自动跳过。
@@ -86,3 +87,6 @@ bash ../../04-results/aij-main-config/submit.sh
 监督器处理 Slurm 结束信号并清理子进程。续跑允许改派同 CPU 型号、同系统平台的节点，仍要求代码、依赖版本、配置、worker 数及输入一致；每条结果记录实际主机和 CPU。`run.json` 记录配置环境，`result.json` 保留原问题见证与精确目标，`summarize_campaign.py` 将各配置合并为一份表并保留未完成项。旧实验数据是否复用仍逐配置判断。
 
 `run_slurm.sh` 保留为单作业兼容入口，已改为 10 核、170G；多配置并行使用上面的 campaign 流程，不重复提交完整矩阵。
+
+全批结果位于 campaign 目录的 `results.csv`，每配置表位于 `sumup/`，比较表和累计求解图位于 `analysis/`。
+列和统计口径见 `CLUSTER_DEPLOYMENT.md` 的“结果落盘与分析”。所有计划行均保留；未完成配置不报告完整批次 PAR-2。

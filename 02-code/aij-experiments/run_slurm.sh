@@ -23,5 +23,5 @@ cd "${AIJ_RUNNER_DIR:-${SLURM_SUBMIT_DIR:-$(dirname "$0")}}"
   --matrix "${AIJ_MATRIX:-main}" --profile formal --workers "${SLURM_CPUS_PER_TASK:-10}" --execute \
   --output "$AIJ_OUTPUT" ${AIJ_RESUME:+--resume} &
 batch_pid=$!
-trap 'kill -TERM "$batch_pid" 2>/dev/null || true; wait "$batch_pid" || true; exit 0' TERM INT
+trap 'kill -TERM "$batch_pid" 2>/dev/null || true; wait "$batch_pid" || true; exit 143' TERM INT
 wait "$batch_pid"

@@ -1,0 +1,2 @@
+# Plotting runs separately from solver workers; compatible with Python 3.9.
+matplotlib==3.9.4
