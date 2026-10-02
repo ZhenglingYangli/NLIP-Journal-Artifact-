@@ -2,5 +2,10 @@ __pycache__/
 *.py[cod]
 .venv/
 *.egg-info/
-04-results/
-03-benchmarks/mipo/
+results/
+benchmarks/mipo/
+
+results/
+sumup/
+benchmarks/mipo/
+jobs/config.cluster.json

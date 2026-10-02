@@ -1,0 +1,74 @@
+{
+  "code_root": "../codes",
+  "python": null,
+  "benchmark_root": "/scratch/scherif/NLIP/NLIP/benchmarks",
+  "manifest_root": "../benchmarks/manifests",
+  "solver_paths": {
+    "MAXHS": "/scratch/scherif/NLIP/NLIP/solvers/maxsat/maxhs",
+    "WMAXCDCL": "/scratch/scherif/NLIP/NLIP/solvers/maxsat/wmaxcdcl",
+    "OPENWBO": "/scratch/scherif/NLIP/NLIP/solvers/maxsat/openwbo"
+  },
+  "profiles": {
+    "smoke": {
+      "solve_seconds": 20,
+      "verify_seconds": 5,
+      "memory_gib": 1,
+      "poll_seconds": 0.05,
+      "outer_seconds": 30
+    },
+    "formal": {
+      "solve_seconds": 3600,
+      "verify_seconds": 120,
+      "memory_gib": 16,
+      "poll_seconds": 0.1,
+      "outer_seconds": 4000
+    }
+  },
+  "families": {
+    "qplib": {
+      "task": "optimization",
+      "directory": "qplib_fully_passed",
+      "extension": ".qplib",
+      "manifest": "qplib_list.txt",
+      "smoke_file": "cross.qplib",
+      "smoke_expected": {
+        "status": "OPTIMAL",
+        "objective_exact": "1"
+      }
+    },
+    "diverse": {
+      "task": "optimization",
+      "directory": "diverse_sat",
+      "extension": ".cnf",
+      "manifest": "diverse_sat_cnf_list_no_bmc.txt",
+      "k": 2,
+      "smoke_file": "two_models.cnf",
+      "smoke_expected": {
+        "status": "OPTIMAL",
+        "objective_exact": "2"
+      }
+    },
+    "smt": {
+      "task": "decision",
+      "directory": "smt_0_10",
+      "extension": ".smt2",
+      "manifest": "smt_list_small.txt",
+      "smoke_file": "bounded.smt2",
+      "smoke_expected": {
+        "status": "SAT"
+      }
+    },
+    "mipo": {
+      "task": "optimization",
+      "directory": "mipo",
+      "extension": ".json",
+      "manifest": "mipo_list.txt",
+      "smoke_file": "quartic.json",
+      "smoke_expected": {
+        "status": "OPTIMAL",
+        "objective_exact": "-1/2"
+      },
+      "input_root": "../benchmarks/mipo"
+    }
+  }
+}
