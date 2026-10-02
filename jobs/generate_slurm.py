@@ -7,13 +7,16 @@ def write_submission(plan, output, ROOT, wall_hours):
              f'--mem={plan["memory_gib"]}G',f'--time={wall_hours//24}-{wall_hours%24:02d}:00:00',
              f'--output={output}/slurm-%A_%a.log',
              f'--export=ALL,AIJ_RUNNER_DIR={ROOT},AIJ_CAMPAIGN={output}',str(ROOT/'run_config_array.sh')]
-    analysis=['sbatch',f'--output={output}/analysis-%j.log',
+    analysis=['sbatch','--parsable',f'--output={output}/analysis-%j.log',
               f'--export=ALL,AIJ_RUNNER_DIR={ROOT},AIJ_CAMPAIGN={output}',str(ROOT.parent/'analysis/run_campaign_analysis.sh')]
     script='#!/usr/bin/env bash\nset -euo pipefail\n: "${AIJ_PYTHON:?Set AIJ_PYTHON to the experiment interpreter}"\n'
     script+='"$AIJ_PYTHON" -c "import matplotlib"\n'
     script+='array_id=$('+shlex.join(command)+')\narray_id=${array_id%%;*}\n'
+    script+='printf "%s\\n" "$array_id" > '+shlex.quote(str(output/'array_job_id.txt'))+'\n'
     script+='printf "Configuration array: %s\\n" "$array_id"\n'
-    script+='sbatch --dependency="afterany:$array_id" '+shlex.join(analysis[1:])+'\n'
+    script+='analysis_id=$(sbatch --dependency="afterany:$array_id" '+shlex.join(analysis[1:])+')\nanalysis_id=${analysis_id%%;*}\n'
+    script+='printf "%s\\n" "$analysis_id" > '+shlex.quote(str(output/'analysis_job_id.txt'))+'\n'
+    script+='printf "Analysis job: %s\\n" "$analysis_id"\n'
     (output/'submit.sh').write_text(script)
 
 

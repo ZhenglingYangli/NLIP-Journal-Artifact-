@@ -37,3 +37,5 @@ python ../analysis/analyze_campaign.py ../results/aij-main
 每批原始结果保存在 `results/<批次>/runs/`；总表为 `results.csv`，旧格式汇总表为 `sumup/`，
 比较表为 `analysis/`，图为 `analysis/figures/`，均在同一批次目录内。不同批次不会混合。
 MIPO 由 `jobs/prepare_mipo.py` 从作者原包下载转换。数据、结果、环境及许可证不上传 GitHub。
+
+合作者集群操作：[操作说明](jobs/COLLABORATOR_GUIDE.md)，统一入口 `bash jobs/run_cluster_pipeline.sh help`。

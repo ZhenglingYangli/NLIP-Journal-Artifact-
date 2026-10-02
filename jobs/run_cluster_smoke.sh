@@ -14,7 +14,7 @@ set -euo pipefail
 cd "$AIJ_RUNNER_DIR"
 "$AIJ_PYTHON" -c 'from goSolver import check_cplex_license; import sys; check_cplex_license(sys.executable)'
 out="../results/cluster-smoke-${SLURM_JOB_ID}"
-"$AIJ_PYTHON" goSolver.py --config config.cluster.json --profile smoke --workers 1 --execute --output "$out" &
+"$AIJ_PYTHON" goSolver.py --config "${AIJ_CONFIG:-config.cluster.json}" --profile smoke --workers 1 --execute --output "$out" &
 pid=$!
 trap 'kill -TERM "$pid" 2>/dev/null || true; wait "$pid" || true; exit 1' TERM INT
 wait "$pid"
