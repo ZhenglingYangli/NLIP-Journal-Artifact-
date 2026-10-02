@@ -2,11 +2,11 @@
 #SBATCH --job-name=aij-main
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --partition=bigmem
+#SBATCH --partition=normal
 #SBATCH --exclusive
-#SBATCH --cpus-per-task=10
+#SBATCH --cpus-per-task=7
 #SBATCH --hint=nomultithread
-#SBATCH --mem=170G
+#SBATCH --mem=120G
 #SBATCH --time=10-01:00:00
 #SBATCH --output=aij-%j.log
 #SBATCH --signal=B:TERM@60
@@ -20,7 +20,7 @@ cd "${AIJ_RUNNER_DIR:-${SLURM_SUBMIT_DIR:-$(dirname "$0")}}"
 # The allocation is a chunk, not the whole worst-case matrix. Resume on the same
 # hardware/configuration; completed TIMEOUT/OOM results are retained.
 "$AIJ_PYTHON" run_batch.py --config "${AIJ_CONFIG:-config.json}" \
-  --matrix "${AIJ_MATRIX:-main}" --profile formal --workers "${SLURM_CPUS_PER_TASK:-10}" --execute \
+  --matrix "${AIJ_MATRIX:-main}" --profile formal --workers "${SLURM_CPUS_PER_TASK:-7}" --execute \
   --output "$AIJ_OUTPUT" ${AIJ_RESUME:+--resume} &
 batch_pid=$!
 trap 'kill -TERM "$batch_pid" 2>/dev/null || true; wait "$batch_pid" || true; exit 143' TERM INT
