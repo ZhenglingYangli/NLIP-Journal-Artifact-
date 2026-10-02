@@ -209,9 +209,16 @@ def load_smt2(path):
 
 
 def solve_smt2(path, seconds, begin_verify=lambda: None):
+    from metrics import progress
+    progress('parse')
     start = time.monotonic()
     tm, solver, declared = load_smt2(path)
     built = time.monotonic()
+    boolean=sum(t.getSort().isBoolean() for t in declared)
+    progress('solve', read_seconds=built-start,
+             problem_features={'representation':'original_smt_declarations','variables':len(declared),
+                               'boolean_variables':boolean, 'boolean_fraction':boolean/len(declared) if declared else 0,
+                               'constraints':len(solver.getAssertions())})
     answer = check(solver, start+seconds)
     result = {'status': 'TIMEOUT' if answer is None else 'UNSAT' if answer.isUnsat() else
               'SAT' if answer.isSat() else 'UNKNOWN', 'verified': False, 'objective_exact': None,

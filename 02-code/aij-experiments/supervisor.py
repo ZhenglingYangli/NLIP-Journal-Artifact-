@@ -7,6 +7,7 @@ import subprocess
 import threading
 import time
 import psutil
+from metrics import merge
 
 
 def kill_group(proc):
@@ -20,7 +21,7 @@ def kill_group(proc):
 def supervise(command, folder, limits, stop=None):
     folder = Path(folder)
     folder.mkdir(parents=True, exist_ok=True)
-    state = {'verify_at': None, 'final': None}
+    state = {'verify_at': None, 'final': None, 'metrics': {}, 'history': []}
     start = time.monotonic()
     peak = 0
     termination = None
@@ -30,13 +31,25 @@ def supervise(command, folder, limits, stop=None):
                                 start_new_session=True, bufsize=1)
 
         def drain():
+            def save_progress():
+                temporary = folder/'progress.json.tmp'
+                temporary.write_text(json.dumps({'metrics':state['metrics'], 'history':state['history']}, ensure_ascii=False), encoding='utf-8')
+                temporary.replace(folder/'progress.json')
             for line in proc.stdout:
                 log.write(line)
                 log.flush()
                 if line.startswith('AIJ_PHASE '):
                     event = json.loads(line[10:])
+                    state['history'].append({'phase':event['phase'], 'at':event['at']})
                     if event['phase'] == 'verify' and state['verify_at'] is None:
                         state['verify_at'] = event['at']
+                    save_progress()
+                elif line.startswith('AIJ_PROGRESS '):
+                    event = json.loads(line[13:])
+                    merge(state['metrics'], event['metrics'])
+                    if event.get('phase'):
+                        state['history'].append({'phase':event['phase'], 'at':event['at']})
+                    save_progress()
                 elif line.startswith('AIJ_RESULT '):
                     state['final'] = json.loads(line[11:])
 
@@ -93,7 +106,15 @@ def supervise(command, folder, limits, stop=None):
     elif proc.returncode and result['status'] not in ('ERROR', 'INVALID'):
         result.update(status='ERROR', error=f'worker exit code {proc.returncode}', verified=False)
     elapsed = end - start
+    result = merge(dict(state['metrics']), result)
+    history = [{'phase':'startup','at':start}] + state['history']
+    phase_seconds = {}
+    for event, following in zip(history, history[1:]+[{'at':end}]):
+        phase_seconds[event['phase']] = phase_seconds.get(event['phase'],0) + max(0,following['at']-event['at'])
+    result.update(last_phase=history[-1]['phase'], termination_phase=history[-1]['phase'] if termination else None,
+                  phase_seconds=phase_seconds)
     result.update(solve_budget_seconds=limits['solve_seconds'], outer_budget_seconds=limits.get('outer_seconds'),
+                  verify_budget_seconds=limits['verify_seconds'], memory_budget_gib=limits['memory_gib'],
                   returncode=proc.returncode, wall_seconds=elapsed,
                   solve_wall_seconds=(verify_at - start) if verify_at is not None else elapsed,
                   verify_wall_seconds=(end - verify_at) if verify_at is not None else 0,

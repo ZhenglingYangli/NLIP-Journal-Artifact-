@@ -6,6 +6,7 @@ from fractions import Fraction
 from math import ceil, floor
 import time
 from scip_baseline import build_model, integer_polynomial, number, exact_double_integer
+from metrics import progress, quality
 
 
 class Unsupported(ValueError):
@@ -81,6 +82,8 @@ def native_cplex(problem):
     c.parameters.optimalitytarget.set(0 if quadratic_constraints else 3)
     mapping = {n:(0,[(i,1)]) for n,i in index.items()}
     return c, mapping, {'route':'native-miqcp' if quadratic_constraints else 'native-miqp',
+                       'variables':c.variables.get_num(),
+                       'constraints':c.linear_constraints.get_num()+c.quadratic_constraints.get_num(),
                        'quadratic_constraints':quadratic_constraints,
                        'objective_scale':scale,'objective_constant':constant,'objective_divisor':1}, 0
 
@@ -126,9 +129,11 @@ def solve(problem, solver, seconds, begin_verify=lambda: None):
                 c.objective.set_offset(offset)
                 c.objective.set_sense(c.objective.sense.minimize if sense=='minimize' else c.objective.sense.maximize)
         build = time.monotonic()-started
+        progress('solve', formula=stats, solver_timings={'build':build})
         remaining = seconds-build
         if remaining<=0: return {'status':'TIMEOUT','verified':False}
         if solver.startswith('CPLEX'):
+            import cplex
             c.set_log_stream(None); c.set_results_stream(None); c.set_warning_stream(None)
             c.parameters.threads.set(1); c.parameters.timelimit.set(remaining)
             c.parameters.mip.tolerances.mipgap.set(0); c.parameters.mip.tolerances.absmipgap.set(0)
@@ -139,6 +144,13 @@ def solve(problem, solver, seconds, begin_verify=lambda: None):
             feasible=c.solution.is_primal_feasible()
             values=c.solution.get_values() if feasible else None
             objective=c.solution.get_objective_value() if feasible else None
+            try:
+                dual=c.solution.MIP.get_best_objective()
+                dual=dual if abs(dual)<cplex.infinity else None
+                gap=c.solution.MIP.get_mip_relative_gap() if feasible else None
+                nodes=c.solution.progress.get_num_nodes_processed()
+            except cplex.exceptions.CplexError:
+                dual=gap=nodes=None
         else:
             checked(c.setOptionValue('time_limit',remaining))
             run_status=c.run()
@@ -149,10 +161,14 @@ def solve(problem, solver, seconds, begin_verify=lambda: None):
             feasible=c.getInfo().primal_solution_status==highspy.SolutionStatus.kSolutionStatusFeasible
             values=c.getSolution().col_value if feasible else None
             objective=c.getObjectiveValue() if feasible else None
+            info=c.getInfo()
+            dual, gap, nodes=info.mip_dual_bound, info.mip_gap, info.mip_node_count
         solved=time.monotonic()
         result={'status':'UNSAT' if infeasible else 'TIMEOUT' if 'time' in backend.lower() else 'UNKNOWN',
                 'verified':False,'backend_status':backend,'formula':stats,
                 'solver_timings':{'build':build,'solve':solved-started-build}}
+        result['quality']=quality(stats, objective, dual, gap, nodes)
+        progress(quality=result['quality'])
         if feasible:
             begin_verify()
             raw={n:lo+sum(values[i]*weight for i,weight in bits) for n,(lo,bits) in mapping.items()}

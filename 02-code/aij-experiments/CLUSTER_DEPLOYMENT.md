@@ -124,6 +124,7 @@ aij-main-config/
 │   ├── jobs/<实例-方法>/
 │   │   ├── job.json
 │   │   ├── stdout.log
+│   │   ├── progress.json          # 已完成阶段的检查点，硬终止后仍保留
 │   │   └── result.json            # 状态、见证、精确目标、耗时和内存
 │   ├── results.csv
 │   └── summary.json
@@ -134,6 +135,10 @@ aij-main-config/
     ├── config_summary.csv
     ├── status_counts.csv
     ├── pairwise.csv
+    ├── instance_features.csv      # 原问题规模、整数域、次数与约束特征
+    ├── encoding_metrics.csv       # 读取/编码/求解、Cost/TopW、分解与简化统计
+    ├── model_quality.csv          # 模型规模、内外目标尺度、上下界、gap、搜索节点
+    ├── phase_metrics.csv          # 阶段耗时及终止发生阶段
     ├── report.md
     └── figures/accumulated-*.png、*.pdf
 ```
@@ -147,13 +152,39 @@ aij-main-config/
 各数据组独立作图，另外生成 QPLIB＋Diverse SAT 合并图。SCIP 和新增基线均保留。
 旧脚本中的硬编码配置名、排除 SCIP 及把 Z3 当作真值的规则不用于当前实验。
 每配置 CSV 的 `TimeTotal`、`TimeForAnalysis` 均映射为当前协议的 `solve_wall_seconds`，包含启动、解析、编码与求解；验解时间另存。
-原日志未记录的读取耗时、TopW 等列留空，不编造为零。
+当前运行记录读取耗时、MaxSAT Cost 和 TopW；数学规划与 SMT 不适用的字段留空。
+历史结果缺失的字段不会事后编造，仍保留为空。
 
 优化成功为 `OPTIMAL` 且原问题见证验解通过；SMT 的 SAT 要求验解通过，UNSAT 作为求解器报告的判定结果统计，不声称已有独立不可满足证明。
 所有成功记录还必须在求解时间预算内。FEASIBLE、UNSUPPORTED、TIMEOUT、OOM、ERROR、INVALID 等状态分列保留。
 PENDING 保留在计划分母中；未完成配置的 PAR-2 留空，全部完成后按本批求解预算两倍惩罚未成功记录（正式批次为 7200 秒）。
 `pairwise.csv` 按同数据组、同实例对齐，给出双方已运行数、共同成功数、各自独有成功数及共同成功上的时间比较。
 正式结论仍需对正式结果执行原问题与可用公开 oracle 的最终核对；环境小实例不会混入正式分析。
+
+### 指标定义和缺失值
+
+`progress.json` 由外围监督器在收到阶段事件时写入，并采用临时文件替换。
+解析完成后保存原问题特征，编码/建模完成后立即保存规模与构建时间，再进入求解。
+TIMEOUT、OOM、VERIFY_TIMEOUT 等结果合并这些已取得指标，同时记录 `termination_phase`。
+某阶段尚未完成时不声称已经取得该阶段的规模或总耗时；最后阶段的 `phase_*_seconds` 是截至终止的时间。
+阶段记录及特征统计开销包含在原有预算内，没有额外延长求解时间。
+
+`read_seconds` 是读取/解析实际耗时，Z3 SMT 多次尝试时累计读取时间。
+`encode_seconds`、`backend_seconds` 保留接口自身计时；`phase_*_seconds` 是监督器按阶段事件计算的墙钟时间，
+还包括该阶段的记录和调度开销。两组指标不保证逐项完全一致，不把它们重复相加。
+WCNF 记录原始 MaxSAT 代价 `maxsat_cost`、硬约束标记 `top_weight` 和软权重总和；原问题目标另存 `objective_exact`。
+
+原问题特征包括变量数、布尔变量数/比例、有限整数域大小、目标项数/次数、约束及非线性约束数。
+多项式接口标记 `parsed_polynomial`；直接 SMT 接口标记原生 AST 或声明表示，只记录该表示可直接取得的特征。
+直接 SMT 的多项式次数/整数域等未进行额外推导，留空；不同表示的特征不可混作同一尺度。
+
+SCIP、CPLEX、HiGHS 记录内部上下界以及还原到原问题目标尺度的上下界。
+若内部目标为 `(原目标×scale−constant)/divisor`，还原为 `(内部目标×divisor+constant)/scale`。
+统一绝对 gap 为 `abs(primal−dual)`，统一归一化 gap 为 `abs(primal−dual)/max(1,abs(primal),abs(dual))`；
+求解器自身的 relative gap 另列。上下界属于数值后端报告，不等同于独立精确证书；可行解仍需原问题验解。
+记录搜索节点数和模型变量/约束数；原生 CPLEX 二次约束计入模型约束数。
+后端尚未返回就被硬终止时，未取得的上下界和节点数留空，不用已知答案填补，也不默认 gap 为零。
+SAT/MaxSAT 路线未统一提供数学规划意义的搜索节点/界时同样留空。
 
 ## 正式资源与当前验收边界
 

@@ -47,8 +47,8 @@ def export_legacy(folder, groups, cutoff):
         for r in records:
             enc = 'BIN+D' if r['method'].startswith('bin-d-') else r['encoding']
             rows.append(dict(zip(fields, [Path(r['input']).name if r['input'] else instance_id(r),
-                enc, r['solver'], r['status'], r['objective_exact'], '', r['num_variables'],
-                r['num_hard_clauses'], r['num_soft_clauses'], '', '', r['encode_seconds'], r['backend_seconds'],
+                enc, r['solver'], r['status'], r['objective_exact'], r['maxsat_cost'], r['num_variables'],
+                r['num_hard_clauses'], r['num_soft_clauses'], r['top_weight'], r['read_seconds'], r['encode_seconds'], r['backend_seconds'],
                 r['solve_wall_seconds'], r['solve_wall_seconds'], r['verified'], int(success(r, cutoff))])))
         write_csv(folder / f'NLIP_{family_names[family]}_{method}.csv', rows, fields)
 
@@ -124,6 +124,20 @@ def analyze(folder, plots=True):
         statuses.extend({'family': family, 'method': method, 'status': s, 'count': n} for s, n in sorted(counts.items()))
     write_csv(analysis/'config_summary.csv', summaries, list(summaries[0]))
     write_csv(analysis/'status_counts.csv', statuses, ['family','method','status','count'])
+    from result_table import FEATURES, QUALITY
+    base=['job_id','family','method','status','verified']
+    for name,fields in [
+        ('instance_features',base+['original_'+k for k in FEATURES]),
+        ('encoding_metrics',base+['read_seconds','encode_seconds','backend_seconds','maxsat_cost','top_weight','total_soft_weight',
+                                 'num_variables','num_hard_clauses','num_soft_clauses','decomposition_requested','decomposition_effective',
+                                 'decomposed_terms','multiplication_requests','multiplication_nodes','cache_hits',
+                                 'generated_variables','generated_hard','generated_soft','simplified_variables','simplified_hard','simplified_soft',
+                                 'max_weight_bits','total_weight_bits','weight_gcd']),
+        ('model_quality',base+['model_route','model_variables','model_constraints','domain_bits','product_variables',
+                              'objective_scale','objective_divisor','objective_constant']+QUALITY),
+        ('phase_metrics',base+['last_phase','termination_phase','termination']+
+                         ['phase_'+k+'_seconds' for k in ['startup','parse','build','solve','verify']])]:
+        write_csv(analysis/(name+'.csv'),[{k:r[k] for k in fields} for r in records],fields)
     pairwise = []
     for family in sorted({f for f, _ in groups}):
         configs = {m: {instance_id(r): r for r in rows} for (f, m), rows in groups.items() if f == family}

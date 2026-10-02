@@ -112,6 +112,9 @@ def _checked_model(problem, model, z3_vars):
     objective = evaluate_polynomial(problem.get('objective', {}).get('terms', []), values)
     return objective, values
 
+aij_progress = lambda *a, **kw: None
+
+
 def _phase1_optimize(problem, z3_vars, bounds, obj_expr, obj_terms, is_max,
                      timeout):
     """Try Z3 Optimize; returns result dict or None if inconclusive."""
@@ -123,6 +126,7 @@ def _phase1_optimize(problem, z3_vars, bounds, obj_expr, obj_terms, is_max,
     add_problem_constraints(opt, problem, z3_vars)
 
     handle = opt.maximize(obj_expr) if is_max else opt.minimize(obj_expr)
+    aij_progress('solve')
     result = opt.check()
 
     if result == sat and _handle_is_finite(handle):
@@ -155,6 +159,7 @@ def _phase2_iterative(problem, z3_vars, bounds, obj_expr, obj_terms, is_max,
 
     Returns (proven_optimal: bool, best_val, best_z3_obj).
     """
+    aij_progress('build')
     solver = Solver()
     for b in bounds:
         solver.add(b)
@@ -180,6 +185,7 @@ def _phase2_iterative(problem, z3_vars, bounds, obj_expr, obj_terms, is_max,
             else:
                 solver.add(obj_expr < best_z3_obj)
 
+        aij_progress('solve')
         r = solver.check()
 
         if r == sat:

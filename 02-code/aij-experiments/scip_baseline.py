@@ -183,11 +183,13 @@ def build_model(problem, route, forced=None):
 
 
 def solve(problem, route, seconds, task='optimization', begin_verify=lambda: None):
+    from metrics import progress, quality
     if problem.get('objective', {}).get('factor_blocks'):
         return {'status': 'UNSUPPORTED', 'verified': False, 'error': 'baseline input requires an explicit polynomial, not factor_blocks'}
     start = time.monotonic()
     model, original, stats = build_model(problem, route)
     build = time.monotonic()-start
+    progress('solve', formula=stats, solver_timings={'build':build})
     remaining = seconds-build
     if remaining <= 0:
         return {'status': 'TIMEOUT', 'verified': False, 'formula': stats}
@@ -200,6 +202,11 @@ def solve(problem, route, seconds, task='optimization', begin_verify=lambda: Non
               'formula': stats, 'solver_timings': {'build': build, 'solve': solved-start-build},
               'optimality_certificate': 'SCIP numerical tolerances; original witness checked exactly',
               'primal_bound': model.getPrimalbound(), 'dual_bound': model.getDualbound()}
+    primal, dual = model.getPrimalbound(), model.getDualbound()
+    result['quality'] = quality(stats, primal if model.getNSols() and not model.isInfinity(abs(primal)) else None,
+                                dual if not model.isInfinity(abs(dual)) else None,
+                                model.getGap() if model.getNSols() else None, model.getNNodes())
+    progress(quality=result['quality'])
     if model.getNSols():
         begin_verify()
         sol = model.getBestSol()
