@@ -1,0 +1,6 @@
+pyscipopt==6.2.1
+numpy==2.0.2
+cvc5==1.3.4
+
+highspy==1.15.1
+cplex==22.1.2.1

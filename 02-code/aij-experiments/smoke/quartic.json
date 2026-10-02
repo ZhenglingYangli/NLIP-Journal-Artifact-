@@ -1,0 +1,26 @@
+{
+  "variables": {
+    "x": {
+      "lb": -2,
+      "ub": 2
+    }
+  },
+  "objective": {
+    "sense": "min",
+    "terms": [
+      {
+        "c": "0.5",
+        "vars": {
+          "x": 4
+        }
+      },
+      {
+        "c": -1,
+        "vars": {
+          "x": 2
+        }
+      }
+    ]
+  },
+  "constraints": []
+}

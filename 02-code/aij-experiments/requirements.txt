@@ -1,0 +1,6 @@
+# Experiment environment, tested with CPython 3.9.
+python-sat==1.8.dev25
+pypblib==0.0.4
+z3-solver==4.15.4.0
+psutil==7.2.2
+-r requirements-baselines.txt
