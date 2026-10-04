@@ -23,7 +23,6 @@ if [[ "$action" == export ]]; then
   echo "请检查 $delivery/README.md 和报告，补充异常及备份位置；全部批次结束后再执行 push。"
   exit 0
 fi
-[[ -f "$delivery/environment.json" && -f "$delivery/analysis/report.md" ]] || { echo '请先 export 并检查交付内容。' >&2; exit 1; }
 command -v squeue >/dev/null || { echo '请在集群环境推送，以检查本项目作业是否结束。' >&2; exit 1; }
 queue=$(squeue --noheader --user="$(id -un)" --format='%i %j')
 while read -r job name; do
@@ -43,9 +42,13 @@ done <<< "$queue"
 branch="results-$batch"
 current=$(git branch --show-current)
 if [[ "$current" != "$branch" ]]; then
-  git show-ref --verify --quiet "refs/heads/$branch" && { echo "分支 $branch 已存在；请检查后自行切换到该分支重试。" >&2; exit 1; }
-  git switch -c "$branch"
+  if git show-ref --verify --quiet "refs/heads/$branch"; then
+    git switch "$branch"
+  else
+    git switch -c "$branch"
+  fi
 fi
+[[ -f "$delivery/environment.json" && -f "$delivery/analysis/report.md" ]] || { echo '请先 export 并检查交付内容。' >&2; exit 1; }
 # Use the export whitelist, including sumup CSV ignored by the repository.
 "$python" - "$delivery" <<'PY'
 import csv, json, subprocess, sys

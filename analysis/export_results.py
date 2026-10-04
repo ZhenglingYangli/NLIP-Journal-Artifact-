@@ -49,7 +49,8 @@ def export(source, target):
         f'计划运行：{len(expected)}；状态：{counts}。\n\n'
         f'原始目录：{source.resolve()}。\n'
         '原问题见证位于原始 result.json，验解记录包单独传输。\n\n'
-        '请补充异常原因（包括失败/超时）、最终分析状态及原始记录备份位置。\n', encoding='utf-8')
+        '最终分析报告已生成；各状态和具体错误见 results.csv 与 analysis/report.md。\n'
+        '原始记录备份位置：未记录。请另行备份原始 runs 与验解包；GitHub 交付不包含它们。\n', encoding='utf-8')
     archive_path = source / 'verification-records.tar.gz'
     records = [source / 'campaign.json'] + sorted(source.glob('runs/*/run.json'))
     records += sorted(source.glob('runs/*/jobs/*/result.json'))

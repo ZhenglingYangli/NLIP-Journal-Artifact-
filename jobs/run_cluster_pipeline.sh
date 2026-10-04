@@ -13,6 +13,7 @@ if (($#)); then shift; fi
 help_text() {
   cat <<'HELP'
 用法：bash jobs/run_cluster_pipeline.sh <操作> [参数]
+自动完整流程：bash jobs/run_cluster_all.sh [--push]
   setup                     检查选定环境，只补装缺少的依赖（无环境则创建）
   env-check                 只检查 Python 依赖，不安装
   data [--archive 文件]      下载或读取 MIPO 原包，转换固定 870 个实例
@@ -133,7 +134,10 @@ PY
     export AIJ_CAMPAIGN
     AIJ_CAMPAIGN=$(campaign_path "${1:-aij-main}")
     [[ -f "$AIJ_CAMPAIGN/campaign.json" ]] || { echo "找不到实验计划：$AIJ_CAMPAIGN" >&2; exit 1; }
-    sbatch --chdir="$JOBS_DIR" --export=ALL --output="$AIJ_CAMPAIGN/analysis-%j.log" "$PROJECT_DIR/analysis/run_campaign_analysis.sh"
+    id=$(sbatch --parsable --chdir="$JOBS_DIR" --export=ALL --output="$AIJ_CAMPAIGN/analysis-%j.log" "$PROJECT_DIR/analysis/run_campaign_analysis.sh")
+    id="${id%%;*}"
+    printf '%s\n' "$id" > "$AIJ_CAMPAIGN/analysis_job_id.txt"
+    printf 'Analysis job: %s\n' "$id" | tee -a "$AIJ_CAMPAIGN/submissions.log"
     ;;
   *) help_text; exit 2 ;;
 esac

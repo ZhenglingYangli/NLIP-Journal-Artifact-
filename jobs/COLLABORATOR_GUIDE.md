@@ -2,6 +2,32 @@
 
 统一入口为 `jobs/run_cluster_pipeline.sh`。它调用现有实验与分析程序，默认 normal、每作业 7 路、120G，同时最多 3 个作业；每实例 3600 秒求解、4000 秒外围上限、16 GiB。正式主实验关闭 LRN。
 
+## 自动总入口
+
+如果希望脚本自动判断并接续全部步骤，在集群登录节点进入项目后运行：
+
+```bash
+cd /scratch/scherif/NLIP/NLIP-AIJ
+# 有已有项目 Python 环境时，先设置 AIJ_PYTHON；需要的站点模块也先加载
+bash jobs/run_cluster_all.sh
+```
+
+总入口默认会补齐准备、小实例测试、主实验、分解对照、最终分析与精简结果导出。运行这个命令就会在条件满足时提交正式实验，无需再逐步调用 prepare/submit。它保持 normal、7 路、120G、同时最多 3 个配置作业，以及原来的 3600s/4000s 预算；主实验与分解对照顺序运行，不把两个数组的并发叠加。
+
+需要连结果推送一起自动完成时，加 --push：
+
+```bash
+mkdir -p results
+nohup bash jobs/run_cluster_all.sh --push >> results/cluster-all.log 2>&1 < /dev/null &
+tail -n 50 results/cluster-all.log
+```
+
+nohup 让总入口在 SSH 断开后继续运行；它每 30 秒查看队列，可能持续数天。总入口进程在登录节点只负责检查和提交，实际求解与画图在计算节点运行。需要站点模块、CPLEX 完整许可证、网络及 Git 认证就绪；自动化无法替代这些站点配置。
+
+它会复用与当前代码和配置一致的 61 配置小实例测试，跳过已完成结果，并对缺失项进行有限续跑。超时、内存不足与已记录失败仍按原口径保留。若许可证/路径/版本不符、小实例失败、队列查询失败或续跑后仍缺结果，流程停止并说明原因；修复后重新运行同一入口，不无限重复提交。中断总入口不会取消已经提交的 Slurm 作业。
+
+结果默认在 results/aij-main 与 results/aij-decomposition；精简交付在 deliveries 下，验解包留在 results 中另行传输和备份。--push 会自动推送 results-aij-main、results-aij-decomposition 分支；已完成交付可以重开入口补做因认证等原因未成功的推送。代码运行期间不要更新或切分支。需要其他批次名时可设置 AIJ_MAIN_BATCH、AIJ_DECOMPOSITION_BATCH；已有离线 MIPO 原包可设置 AIJ_MIPO_ARCHIVE。
+
 ## 1. 获取代码和环境
 
 以下命令在 MatriCS 登录节点执行。先按集群实际模块加载 Python 3.9 和需要的 CPLEX 环境，再进行安装。
