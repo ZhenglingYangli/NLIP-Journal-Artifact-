@@ -3,6 +3,7 @@
 set -euo pipefail
 JOBS_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd -- "$JOBS_DIR/.." && pwd)"
+export NLIP_LEGACY_ROOT="${NLIP_LEGACY_ROOT:-/scratch/scherif/NLIP/NLIP}"
 export AIJ_RUNNER_DIR="$JOBS_DIR"
 export AIJ_PYTHON="${AIJ_PYTHON:-$JOBS_DIR/.venv/bin/python}"
 export AIJ_CONFIG="${AIJ_CONFIG:-$JOBS_DIR/config.cluster.json}"
@@ -30,7 +31,10 @@ help_text() {
 默认 normal / 每作业 7 路 / 120G / 同时 3 作业。未指定操作只显示帮助。
 AIJ_PYTHON 可指定已有环境；AIJ_CONFIG 可指定已有配置。
 结果默认位于仓库 results/；批次参数也可直接使用绝对路径。
+MatriCS 新项目目录：/scratch/scherif/NLIP/NLIP-AIJ
+旧数据和求解器根目录：/scratch/scherif/NLIP/NLIP
 HELP
+  printf '当前代码目录：%s\n当前结果目录：%s/results\n' "$PROJECT_DIR" "$PROJECT_DIR"
 }
 python_ready() {
   [[ -x "$AIJ_PYTHON" ]] || { echo "Python 不可用：$AIJ_PYTHON；先运行 setup 或设置 AIJ_PYTHON。" >&2; exit 1; }

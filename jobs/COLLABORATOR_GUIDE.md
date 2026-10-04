@@ -7,8 +7,9 @@
 以下命令在 MatriCS 登录节点执行。先按集群实际模块加载 Python 3.9 和需要的 CPLEX 环境，再进行安装。
 
 ```bash
-git clone https://github.com/ZhenglingYangli/NLIP-Journal-Artifact-.git
-cd NLIP-Journal-Artifact-
+export NLIP_WORKDIR=/scratch/scherif/NLIP/NLIP-AIJ
+git clone https://github.com/ZhenglingYangli/NLIP-Journal-Artifact-.git "$NLIP_WORKDIR"
+cd "$NLIP_WORKDIR"
 export PYTHON=python3.9
 bash jobs/run_cluster_pipeline.sh setup
 ```
@@ -72,3 +73,6 @@ bash jobs/run_cluster_pipeline.sh submit aij-decomposition
 resume 会检查记录的数组作业是否仍在队列中，运行中不重复提交。若数组提交成功但后续分析作业提交失败，原实验可能已运行；先 status 查看，后续用 analyze 补交分析即可。
 
 可用 `scancel <作业号>` 手动停止指定作业；提交依赖分析后再续跑时，结束后可用 analyze 更新全批表格。不同批次名彼此隔离，批次参数也可以传绝对路径。
+
+
+MatriCS 部署目录固定为 `/scratch/scherif/NLIP/NLIP-AIJ/`；旧数据和求解器根目录为 `/scratch/scherif/NLIP/NLIP/`。主实验结果写入新项目 `results/aij-main/`，新 MIPO 写入 `benchmarks/mipo/`。脚本默认使用新安装位置，可通过 `AIJ_RUNNER_DIR` 和 `AIJ_PYTHON` 指定实际运行环境。

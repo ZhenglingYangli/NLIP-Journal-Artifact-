@@ -6,7 +6,7 @@ GitHub 目标：<https://github.com/ZhenglingYangli/NLIP-Journal-Artifact->。
 ## 目录与数据
 
 ```text
-NLIP-Journal-Artifact-/
+/scratch/scherif/NLIP/NLIP-AIJ/
 ├── codes/                      # NLIPSat 核心、编码器、求解器接口
 │   └── solvers/baseline/        # Z3、SCIP、CPLEX、HiGHS、cvc5 接口
 ├── jobs/                       # 实验调度与集群提交
@@ -64,8 +64,9 @@ Ubuntu 活动目录：`/home/ubuntu/#科研项目/MIS/3-NLIP_AIJ`。
 以下命令在获确认、GitHub 已推送后执行。集群 checkout 位置可自行选择，目录相对布局需保留。
 
 ```bash
-git clone https://github.com/ZhenglingYangli/NLIP-Journal-Artifact-.git
-cd NLIP-Journal-Artifact-/jobs
+export NLIP_WORKDIR=/scratch/scherif/NLIP/NLIP-AIJ
+git clone https://github.com/ZhenglingYangli/NLIP-Journal-Artifact-.git "$NLIP_WORKDIR"
+cd "$NLIP_WORKDIR/jobs"
 python3.9 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python -m pip install -r ../analysis/requirements-analysis.txt
@@ -208,3 +209,6 @@ Ubuntu 已核对数据、代码和计划生成；还没有在 MatriCS 计算节�
 这些由上面的路径检查和一次计算节点 61 项小实例作业确认。未经这一步不能称为已具备正式开跑条件。
 
 合作者可使用 [统一操作入口说明](COLLABORATOR_GUIDE.md) 完成环境检查、提交和分析。
+
+
+MatriCS 部署目录固定为 `/scratch/scherif/NLIP/NLIP-AIJ/`；旧数据和求解器根目录为 `/scratch/scherif/NLIP/NLIP/`。主实验结果写入新项目 `results/aij-main/`，新 MIPO 写入 `benchmarks/mipo/`。脚本默认使用新安装位置，可通过 `AIJ_RUNNER_DIR` 和 `AIJ_PYTHON` 指定实际运行环境。

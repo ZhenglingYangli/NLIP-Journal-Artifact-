@@ -9,8 +9,8 @@
 #SBATCH --hint=nomultithread
 #SBATCH --output=aij-smoke-%j.log
 set -euo pipefail
-: "${AIJ_PYTHON:?Set AIJ_PYTHON}"
-: "${AIJ_RUNNER_DIR:?Set AIJ_RUNNER_DIR}"
+export AIJ_RUNNER_DIR="${AIJ_RUNNER_DIR:-/scratch/scherif/NLIP/NLIP-AIJ/jobs}"
+export AIJ_PYTHON="${AIJ_PYTHON:-$AIJ_RUNNER_DIR/.venv/bin/python}"
 cd "$AIJ_RUNNER_DIR"
 "$AIJ_PYTHON" -c 'from goSolver import check_cplex_license; import sys; check_cplex_license(sys.executable)'
 out="../results/cluster-smoke-${SLURM_JOB_ID}"

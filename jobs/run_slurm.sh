@@ -13,13 +13,14 @@
 set -euo pipefail
 # Single-batch compatibility entry. The default multi-job workflow is
 # generate_scripts.py -> generated submit.sh -> run_config_array.sh.
-# Set AIJ_RUNNER_DIR if submitting outside this directory.
-cd "${AIJ_RUNNER_DIR:-${SLURM_SUBMIT_DIR:-$(dirname "$0")}}"
-: "${AIJ_PYTHON:?Set AIJ_PYTHON to the configured experiment Python}"
+# AIJ_RUNNER_DIR can override the agreed MatriCS installation directory.
+export AIJ_RUNNER_DIR="${AIJ_RUNNER_DIR:-/scratch/scherif/NLIP/NLIP-AIJ/jobs}"
+export AIJ_PYTHON="${AIJ_PYTHON:-$AIJ_RUNNER_DIR/.venv/bin/python}"
+cd "$AIJ_RUNNER_DIR"
 : "${AIJ_OUTPUT:?Set AIJ_OUTPUT to a persistent result directory}"
 # The allocation is a chunk, not the whole worst-case matrix. Resume on the same
 # hardware/configuration; completed TIMEOUT/OOM results are retained.
-"$AIJ_PYTHON" goSolver.py --config "${AIJ_CONFIG:-config.json}" \
+"$AIJ_PYTHON" goSolver.py --config "${AIJ_CONFIG:-config.cluster.json}" \
   --matrix "${AIJ_MATRIX:-main}" --profile formal --workers "${SLURM_CPUS_PER_TASK:-7}" --execute \
   --output "$AIJ_OUTPUT" ${AIJ_RESUME:+--resume} &
 batch_pid=$!

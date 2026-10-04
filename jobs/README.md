@@ -100,3 +100,6 @@ bash ../results/aij-main-config/submit.sh
 
 全批结果位于 campaign 目录的 `results.csv`，每配置表位于 `sumup/`，比较表和累计求解图位于 `analysis/`。
 列和统计口径见 `CLUSTER_DEPLOYMENT.md` 的“结果落盘与分析”。所有计划行均保留；未完成配置不报告完整批次 PAR-2。
+
+
+MatriCS 部署目录固定为 `/scratch/scherif/NLIP/NLIP-AIJ/`；旧数据和求解器根目录为 `/scratch/scherif/NLIP/NLIP/`。主实验结果写入新项目 `results/aij-main/`，新 MIPO 写入 `benchmarks/mipo/`。脚本默认使用新安装位置，可通过 `AIJ_RUNNER_DIR` 和 `AIJ_PYTHON` 指定实际运行环境。

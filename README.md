@@ -4,7 +4,7 @@
 正式实验关闭 LRN。默认 normal、每作业 7 路、120G，同时最多 3 个配置作业。
 
 ```text
-NLIP-Journal-Artifact-/
+/scratch/scherif/NLIP/NLIP-AIJ/
 ├── codes/                      # NLIPSat 核心、编码器、求解器接口
 │   └── solvers/baseline/        # Z3、SCIP、CPLEX、HiGHS、cvc5 接口
 ├── jobs/                       # 实验调度与集群提交
@@ -39,3 +39,6 @@ python ../analysis/analyze_campaign.py ../results/aij-main
 MIPO 由 `jobs/prepare_mipo.py` 从作者原包下载转换。数据、结果、环境及许可证不上传 GitHub。
 
 合作者集群操作：[操作说明](jobs/COLLABORATOR_GUIDE.md)，统一入口 `bash jobs/run_cluster_pipeline.sh help`。
+
+
+MatriCS 部署目录固定为 `/scratch/scherif/NLIP/NLIP-AIJ/`；旧数据和求解器根目录为 `/scratch/scherif/NLIP/NLIP/`。主实验结果写入新项目 `results/aij-main/`，新 MIPO 写入 `benchmarks/mipo/`。脚本默认使用新安装位置，可通过 `AIJ_RUNNER_DIR` 和 `AIJ_PYTHON` 指定实际运行环境。
