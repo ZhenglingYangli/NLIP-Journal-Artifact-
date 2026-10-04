@@ -2,6 +2,17 @@
 
 统一入口为 `jobs/run_cluster_pipeline.sh`。它调用现有实验与分析程序，默认 normal、每作业 7 路、120G，同时最多 3 个作业；每实例 3600 秒求解、4000 秒外围上限、16 GiB。正式主实验关闭 LRN。
 
+## 首次获取代码并自动启动
+
+```bash
+export NLIP_WORKDIR=/scratch/scherif/NLIP/NLIP-AIJ
+curl -fsSL https://raw.githubusercontent.com/ZhenglingYangli/NLIP-Journal-Artifact-/main/jobs/start_cluster.sh \
+  -o /tmp/start-nlip-aij.sh
+bash /tmp/start-nlip-aij.sh --push
+```
+
+先加载站点的 Python、CPLEX 等环境；已有项目环境可设置 AIJ_PYTHON。启动脚本首次自动克隆；已有 checkout 则先检查队列与冻结计划，再更新并进入总流程。--push 包括最终结果推送；去掉它则只导出。
+
 ## 自动总入口
 
 如果希望脚本自动判断并接续全部步骤，在集群登录节点进入项目后运行：
@@ -12,7 +23,7 @@ cd /scratch/scherif/NLIP/NLIP-AIJ
 bash jobs/run_cluster_all.sh
 ```
 
-总入口默认会补齐准备、小实例测试、主实验、分解对照、最终分析与精简结果导出。运行这个命令就会在条件满足时提交正式实验，无需再逐步调用 prepare/submit。它保持 normal、7 路、120G、同时最多 3 个配置作业，以及原来的 3600s/4000s 预算；主实验与分解对照顺序运行，不把两个数组的并发叠加。
+总入口默认先判断是否同步代码，再补齐准备、小实例测试、主实验、分解对照、最终分析与精简结果导出。运行这个命令就会在条件满足时提交正式实验，无需再逐步调用 prepare/submit。它保持 normal、7 路、120G、同时最多 3 个配置作业，以及原来的 3600s/4000s 预算；主实验与分解对照顺序运行，不把两个数组的并发叠加。
 
 需要连结果推送一起自动完成时，加 --push：
 
@@ -26,7 +37,7 @@ nohup 让总入口在 SSH 断开后继续运行；它每 30 秒查看队列，�
 
 它会复用与当前代码和配置一致的 61 配置小实例测试，跳过已完成结果，并对缺失项进行有限续跑。超时、内存不足与已记录失败仍按原口径保留。若许可证/路径/版本不符、小实例失败、队列查询失败或续跑后仍缺结果，流程停止并说明原因；修复后重新运行同一入口，不无限重复提交。中断总入口不会取消已经提交的 Slurm 作业。
 
-结果默认在 results/aij-main 与 results/aij-decomposition；精简交付在 deliveries 下，验解包留在 results 中另行传输和备份。--push 会自动推送 results-aij-main、results-aij-decomposition 分支；已完成交付可以重开入口补做因认证等原因未成功的推送。代码运行期间不要更新或切分支。需要其他批次名时可设置 AIJ_MAIN_BATCH、AIJ_DECOMPOSITION_BATCH；已有离线 MIPO 原包可设置 AIJ_MIPO_ARCHIVE。
+结果默认在 results/aij-main 与 results/aij-decomposition；精简交付在 deliveries 下，验解包留在 results 中另行传输和备份。--push 会自动推送 results-aij-main、results-aij-decomposition 分支；已完成交付可以重开入口补做因认证等原因未成功的推送。作业运行期间不要手工更新或切分支。总入口先等现有作业结束；已有冻结 campaign.json（含未提交计划）或结果分支时保留原版本；新实验在 main 上用 git pull --ff-only origin main 同步并重开新版入口。未提交修改或网络失败会停止。--no-pull 可显式保留当前代码、不联网。需要其他批次名时可设置 AIJ_MAIN_BATCH、AIJ_DECOMPOSITION_BATCH；已有离线 MIPO 原包可设置 AIJ_MIPO_ARCHIVE。
 
 ## 1. 获取代码和环境
 

@@ -69,7 +69,7 @@ class AutoWorkflowTests(unittest.TestCase):
             }.items():
                 p=root/'bin'/name;p.write_text(text);p.chmod(0o755)
             env=dict(os.environ, AIJ_PYTHON=sys.executable, AIJ_CONFIG=str(root/'jobs/config.cluster.json'), PATH=str(root/'bin')+':'+os.environ['PATH'])
-            command=['bash',str(root/'jobs/run_cluster_all.sh'),'--push']
+            command=['bash',str(root/'jobs/run_cluster_all.sh'),'--push','--no-pull']
             first=subprocess.run(command,cwd=root,env=env,capture_output=True,text=True,timeout=20)
             self.assertEqual(first.returncode,0,first.stdout+first.stderr)
             actions=(root/'actions').read_text()
@@ -95,6 +95,28 @@ class AutoWorkflowTests(unittest.TestCase):
             self.assertIn('smoke\n',new_actions)
             self.assertNotIn('submit',new_actions)
             self.assertNotIn('prepare',new_actions)
+            # Real fast-forward update re-enters the new script with the same lock.
+            shutil.rmtree(root/'results')
+            (root/'.gitignore').write_text('results/\ndeliveries/\nactions\npushes\nbin/\njobs/config.cluster.json\n')
+            def git(*args):
+                return subprocess.run(['git','-C',str(root),*args],check=True,capture_output=True,text=True)
+            git('init','-b','main');git('config','user.name','test');git('config','user.email','test@example.invalid')
+            git('add','.');git('commit','-m','fixture')
+            origin=root/'origin.git'
+            subprocess.run(['git','init','--bare',str(origin)],check=True,capture_output=True)
+            git('remote','add','origin',str(origin));git('push','origin','main')
+            update=root/'upstream'
+            subprocess.run(['git','clone','--branch','main',str(origin),str(update)],check=True,capture_output=True)
+            for args in [('config','user.name','test'),('config','user.email','test@example.invalid')]:
+                subprocess.run(['git','-C',str(update),*args],check=True,capture_output=True)
+            (update/'updated.txt').write_text('new revision')
+            for args in [('add','updated.txt'),('commit','-m','update'),('push','origin','main')]:
+                subprocess.run(['git','-C',str(update),*args],check=True,capture_output=True)
+            before_actions=(root/'actions').read_text()
+            synced=subprocess.run(command[:-1],cwd=root,env=env,capture_output=True,text=True,timeout=20)
+            self.assertEqual(synced.returncode,0,synced.stdout+synced.stderr)
+            self.assertTrue((root/'updated.txt').exists())
+            self.assertEqual((root/'actions').read_text()[len(before_actions):].count('setup\n'),1)
 
 if __name__ == '__main__':
     unittest.main()

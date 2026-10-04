@@ -5,6 +5,8 @@ GitHub → 集群的具体部署、MIPO 下载转换和计算节点验收见 [CL
 Ubuntu 活动目录为 `/home/ubuntu/#科研项目/MIS/3-NLIP_AIJ`：求解器在 `codes`，运行器在 `jobs`。执行要求 Linux、Python 3.9。原 LRN 的 2,040 条性能记录保持只读。
 
 
+自动完整流程使用 `bash jobs/run_cluster_all.sh --push`（从仓库根目录执行）；首次克隆和已有 checkout 更新可使用 `jobs/start_cluster.sh`。总入口先按作业和冻结计划判断是否更新代码，详细操作见 [合作者说明](COLLABORATOR_GUIDE.md)。
+
 ## 文件分工
 
 沿用旧实验的 codes / jobs / analysis 组织方式和入口名称。

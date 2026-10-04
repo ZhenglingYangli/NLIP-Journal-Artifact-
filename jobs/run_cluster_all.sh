@@ -6,15 +6,18 @@ PROJECT_DIR="$(cd -- "$JOBS_DIR/.." && pwd)"
 export AIJ_PYTHON="${AIJ_PYTHON:-$JOBS_DIR/.venv/bin/python}"
 export AIJ_CONFIG="${AIJ_CONFIG:-$JOBS_DIR/config.cluster.json}"
 push=false
+pull=true
 main=aij-main
 decomposition=aij-decomposition
 for arg in "$@"; do
   case "$arg" in
     --push) push=true ;;
+    --no-pull) pull=false ;;
     --help|-h)
-      echo '用法：bash jobs/run_cluster_all.sh [--push]'
-      echo '自动补齐准备 → 小实例测试 → 主实验 → 分解对照 → 分析 → 导出。'
+      echo '用法：bash jobs/run_cluster_all.sh [--push] [--no-pull]'
+      echo '自动同步代码 → 补齐准备 → 小实例测试 → 主实验 → 分解对照 → 分析 → 导出。'
       echo '--push：全部结束后自动推送两个结果分支；默认只导出。'
+      echo '--no-pull：使用当前代码，不联网更新；冻结的已有批次自动保留版本。'
       echo '可设置 AIJ_MAIN_BATCH、AIJ_DECOMPOSITION_BATCH、AIJ_MIPO_ARCHIVE。'
       echo '可中断并重开此入口，已提交的 Slurm 作业继续运行。'
       exit 0 ;;
@@ -32,8 +35,10 @@ for cmd in sbatch squeue sacct flock; do
   command -v "$cmd" >/dev/null || { echo "缺少 $cmd，请在集群登录环境运行。" >&2; exit 1; }
 done
 mkdir -p results
-exec 9>results/.cluster-all.lock
-flock -n 9 || { echo '这个项目已有总入口运行中，请查看它的日志。' >&2; exit 1; }
+if [[ "${AIJ_ALL_LOCK_HELD:-0}" != 1 ]]; then
+  exec 9>results/.cluster-all.lock
+  flock -n 9 || { echo '这个项目已有总入口运行中，请查看它的日志。' >&2; exit 1; }
+fi
 trap 'echo "流程停在第 $LINENO 行。查看上方错误，修复后重开同一入口；已提交的作业不会被取消。" >&2' ERR
 pipeline() { bash "$JOBS_DIR/run_cluster_pipeline.sh" "$@"; }
 active() {
@@ -67,6 +72,28 @@ for record in results/*/array_job_id.txt results/*/analysis_job_id.txt results/c
   job=$(cat "$record")
   if active "$job"; then wait_job "$job" || true; fi
 done
+# Prepared plans depend on the exact Git commit, including unsubmitted plans.
+if $pull && [[ "${AIJ_CODE_SYNCED:-0}" != 1 ]]; then
+  frozen=false
+  for plan in results/*/campaign.json; do
+    if [[ -f "$plan" ]]; then frozen=true; break; fi
+  done
+  branch=$(git branch --show-current)
+  if $frozen || [[ "$branch" == results-* ]]; then
+    echo '已有冻结实验计划或正在交付结果，保留其代码版本；本次不拉取新提交。'
+  else
+    [[ "$branch" == main ]] || { echo "当前分支是 $branch，请在 main 上启动新实验，或用 --no-pull 保留当前代码。" >&2; exit 1; }
+    [[ -z "$(git status --porcelain --untracked-files=no)" ]] || { echo '代码有未提交修改，未执行拉取；请处理后重开入口。' >&2; exit 1; }
+    before=$(git rev-parse HEAD)
+    git pull --ff-only origin main
+    if [[ "$(git rev-parse HEAD)" != "$before" ]]; then
+      echo '代码已更新，重新进入新版总入口。'
+      export AIJ_CODE_SYNCED=1 AIJ_ALL_LOCK_HELD=1
+      exec bash "$JOBS_DIR/run_cluster_all.sh" "$@"
+    fi
+    echo '代码已与 origin/main 同步。'
+  fi
+fi
 # A retry after Git authentication failure must not rerun completed experiments.
 if [[ -x "$AIJ_PYTHON" && -d "deliveries/$main" && -d "deliveries/$decomposition" ]]; then
   "$AIJ_PYTHON" "$JOBS_DIR/check_auto_state.py" delivery "$PROJECT_DIR/results/$main" "$PROJECT_DIR/deliveries/$main"

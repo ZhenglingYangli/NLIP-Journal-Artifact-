@@ -10,7 +10,9 @@
 ├── jobs/                       # 实验调度与集群提交
 │   ├── goSolver.py             # 并行执行实例、调用求解代码、记录结果
 │   ├── generate_scripts.py     # 按数据集与方法生成实验计划
-│   └── generate_slurm.py       # 生成 Slurm 提交脚本
+│   ├── generate_slurm.py       # 生成 Slurm 提交脚本
+│   ├── start_cluster.sh        # 首次克隆或更新后启动
+│   └── run_cluster_all.sh      # 自动准备、测试、实验、分析及交付
 ├── analysis/                   # 读取结果、汇总指标、比较与画图
 ├── benchmarks/                 # 固定清单；MIPO 在目标机器准备
 ├── tests/                      # 小实例与接口测试
@@ -36,9 +38,9 @@ python ../analysis/analyze_campaign.py ../results/aij-main
 
 每批原始结果保存在 `results/<批次>/runs/`；总表为 `results.csv`，旧格式汇总表为 `sumup/`，
 比较表为 `analysis/`，图为 `analysis/figures/`，均在同一批次目录内。不同批次不会混合。
-MIPO 由 `jobs/prepare_mipo.py` 从作者原包下载转换。数据、结果、环境及许可证不上传 GitHub。
+MIPO 由 `jobs/prepare_mipo.py` 从作者原包下载转换。数据、原始运行输出、虚拟环境及许可证不上传 GitHub；精简结果在 deliveries 中交付。
 
-合作者集群操作：[操作说明](jobs/COLLABORATOR_GUIDE.md)，统一入口 `bash jobs/run_cluster_pipeline.sh help`。
+合作者集群操作：[操作说明](jobs/COLLABORATOR_GUIDE.md)。已有项目可运行 `bash jobs/run_cluster_all.sh --push` 自动接续全部流程；首次获取代码可下载并运行 `jobs/start_cluster.sh`。分步操作仍使用 `bash jobs/run_cluster_pipeline.sh help`。
 
 
 MatriCS 部署目录固定为 `/scratch/scherif/NLIP/NLIP-AIJ/`；旧数据和求解器根目录为 `/scratch/scherif/NLIP/NLIP/`。主实验结果写入新项目 `results/aij-main/`，新 MIPO 写入 `benchmarks/mipo/`。脚本默认使用新安装位置，可通过 `AIJ_RUNNER_DIR` 和 `AIJ_PYTHON` 指定实际运行环境。
