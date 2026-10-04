@@ -14,7 +14,7 @@ export PYTHON=python3.9
 bash jobs/run_cluster_pipeline.sh setup
 ```
 
-已有环境可以先 `export AIJ_PYTHON=/绝对路径/bin/python`。默认环境在 `jobs/.venv/`，无需每次激活。`setup` 安装固定依赖；若使用集群提供的完整 CPLEX Python API，请在安装后按站点方式加载/配置。安装 cplex 包本身不代表有完整许可证，小实例作业会用超过社区版限制的模型检查许可证。
+已有环境可以先 `export AIJ_PYTHON=/绝对路径/bin/python`。默认环境在 `jobs/.venv/`，无需每次激活。`setup` 先检查选定环境，只按固定版本补装缺少的包；已经安装的包不会自动重装。版本不符或导入失败会报告并停止，请处理后再检查。只查看、不安装可用 `bash jobs/run_cluster_pipeline.sh env-check`。若使用集群提供的完整 CPLEX Python API，请先按站点方式加载/配置。安装 cplex 包本身不代表有完整许可证，小实例作业会用超过社区版限制的模型检查许可证。
 
 ## 2. 准备数据和站点路径
 
@@ -76,3 +76,15 @@ resume 会检查记录的数组作业是否仍在队列中，运行中不重复�
 
 
 MatriCS 部署目录固定为 `/scratch/scherif/NLIP/NLIP-AIJ/`；旧数据和求解器根目录为 `/scratch/scherif/NLIP/NLIP/`。主实验结果写入新项目 `results/aij-main/`，新 MIPO 写入 `benchmarks/mipo/`。脚本默认使用新安装位置，可通过 `AIJ_RUNNER_DIR` 和 `AIJ_PYTHON` 指定实际运行环境。
+
+## 6. 导出并推送结果
+
+全部实验与分析作业结束后，执行：
+
+```bash
+bash jobs/push_results.sh export aij-main
+# 检查 deliveries/aij-main/README.md 和报告，填写异常说明和备份位置
+bash jobs/push_results.sh push aij-main
+```
+
+export 只导出逐实例总表、配置、环境、汇总表、分析表和图，不提交。带原问题见证的 result.json 和 run.json 打包为 results/aij-main/verification-records.tar.gz，另行传输。push 检查本项目队列、只提交精简交付文件，推送 results-aij-main 分支；需有仓库写权限。超时、内存不足和失败均保留，尚有 PENDING 时不交付。分解对照把批次名改为 aij-decomposition。已有交付目录不会被 export 覆盖。

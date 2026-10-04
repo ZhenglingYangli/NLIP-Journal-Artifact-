@@ -13,7 +13,8 @@ if (($#)); then shift; fi
 help_text() {
   cat <<'HELP'
 用法：bash jobs/run_cluster_pipeline.sh <操作> [参数]
-  setup                     创建 Python 环境并安装依赖（可先 export PYTHON=python3.9）
+  setup                     检查选定环境，只补装缺少的依赖（无环境则创建）
+  env-check                 只检查 Python 依赖，不安装
   data [--archive 文件]      下载或读取 MIPO 原包，转换固定 870 个实例
   configure                 按 NLIP_* 环境变量定位集群数据和外部求解器
   check                     检查依赖、正式输入、外部程序与 Slurm 命令
@@ -58,9 +59,10 @@ case "$action" in
       [[ "$AIJ_PYTHON" == "$JOBS_DIR/.venv/bin/python" ]] || { echo "指定的 AIJ_PYTHON 不存在。" >&2; exit 1; }
       "${PYTHON:-python3.9}" -m venv "$JOBS_DIR/.venv"
     fi
-    "$AIJ_PYTHON" -m pip install -r "$JOBS_DIR/requirements.txt" -r "$PROJECT_DIR/analysis/requirements-analysis.txt"
-    echo "环境已安装。CPLEX 完整许可证将在计算节点 smoke 中检查。"
+    "$AIJ_PYTHON" "$JOBS_DIR/check_environment.py" --install-missing
+    echo "环境已检查并补齐缺少的依赖。CPLEX 完整许可证将在计算节点 smoke 中检查。"
     ;;
+  env-check) python_ready; "$AIJ_PYTHON" "$JOBS_DIR/check_environment.py" ;;
   data) python_ready; "$AIJ_PYTHON" "$JOBS_DIR/prepare_mipo.py" "$@" ;;
   configure) python_ready; "$AIJ_PYTHON" "$JOBS_DIR/configure_cluster.py" ;;
   check)
