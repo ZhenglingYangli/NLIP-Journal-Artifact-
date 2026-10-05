@@ -29,13 +29,22 @@ def main():
     ap=argparse.ArgumentParser(); ap.add_argument('txt_root',type=Path); ap.add_argument('output',type=Path); ap.add_argument('manifest',type=Path)
     a=ap.parse_args(); files=sorted(a.txt_root.rglob('*.txt'))
     if len(files)!=870: raise ValueError(f'expected 870 original integer TXT inputs, found {len(files)}')
-    a.output.mkdir(parents=True,exist_ok=True); names=[]
+    expected=a.manifest.read_text().splitlines()
+    models={}
     for path in files:
         model=convert(path); name=path.stem+'.json'
-        if name in names: raise ValueError('duplicate instance filename')
-        names.append(name); (a.output/name).write_text(json.dumps(model,separators=(',',':'))+'\n',encoding='utf-8')
-    a.manifest.write_text('\n'.join(names)+'\n',encoding='utf-8')
-    print(f'Converted {len(names)} MIPO TXT models without rounding.')
+        if name in models: raise ValueError('duplicate instance filename')
+        models[name]=model
+    if len(expected)!=870 or set(models)!=set(expected):
+        raise ValueError('integer TXT inputs do not match the fixed MIPO manifest')
+    a.output.mkdir(parents=True,exist_ok=True)
+    for name in expected:
+        target=a.output/name
+        if target.exists() and json.loads(target.read_text())!=models[name]:
+            raise ValueError('existing input differs from published TXT: '+str(target))
+    for name in expected:
+        (a.output/name).write_text(json.dumps(models[name],separators=(',',':'))+'\n',encoding='utf-8')
+    print(f'Converted {len(models)} MIPO TXT models without rounding; fixed manifest unchanged.')
 
 
 if __name__=='__main__': main()

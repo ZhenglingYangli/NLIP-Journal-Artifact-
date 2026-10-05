@@ -1,17 +1,41 @@
 # AIJ 实验执行
 
-GitHub → 集群的具体部署、MIPO 下载转换和计算节点验收见 [CLUSTER_DEPLOYMENT.md](CLUSTER_DEPLOYMENT.md)。
+集群环境、MIPO 数据准备与提交顺序见 [COLLABORATOR_GUIDE.md](../docs/COLLABORATOR_GUIDE.md)。
 
 Ubuntu 活动目录为 `/home/ubuntu/#科研项目/MIS/3-NLIP_AIJ`：求解器在 `codes`，运行器在 `jobs`。执行要求 Linux、Python 3.9。原 LRN 的 2,040 条性能记录保持只读。
 
 
-自动完整流程使用 `bash jobs/run_cluster_all.sh --push`（从仓库根目录执行）；首次克隆和已有 checkout 更新可使用 `jobs/start_cluster.sh`。总入口先按作业和冻结计划判断是否更新代码，详细操作见 [合作者说明](COLLABORATOR_GUIDE.md)。
+小测试作业为 `jobs/test.slurm`，资源头后直接调用 goSolver；使用项目根目录已有的 `.venv/bin/python`。从项目根目录操作。日常只使用 `goSolver.py` 和 `generate_scripts.py`。
+
+```bash
+# 提交一个自带的 QPLIB/BIN/RC2 小测试；从项目根目录提交。
+sbatch jobs/test.slurm
+
+# 查看小测试队列；日志位于 nlip-test-作业号.log。
+squeue -u "$USER"
+
+# 选择其他数据组或方法；省略方法时 SMT 使用 BIN/CaDiCaL，其余使用 BIN/RC2。
+sbatch jobs/test.slurm smt
+sbatch jobs/test.slurm qplib z3
+
+# 提交全部 61 个配置的小测试，检查 CPLEX 完整许可证。
+sbatch --time=00:45:00 jobs/test.slurm all
+
+# 数据和全部求解器准备好后，生成正式主实验，再提交。
+python jobs/generate_scripts.py
+bash results/main/submit.sh
+```
+
+测试结果默认写入 `results/smoke-main-日期时间/`，程序结束时显示具体位置。简短测试入口和正式作业生成优先读取 `jobs/config.cluster.json`，没有站点配置则读取 `jobs/config.json`。生成的提交脚本保存配置中选定的 Python 路径，不需要另行设置 `AIJ_PYTHON`。测试结束自动核对预期答案和原问题验解；不通过时返回非零退出码。
+
+`test` 只用仓库自带的小实例，不要求正式 MIPO 文件存在。MIPO 使用手动下载的数据；压缩包用 `python jobs/data/prepare_mipo.py --archive /实际路径/mipo.tar.gz` 转换，已经生成的 JSON 用 `NLIP_MIPO_ROOT` 指向它的目录。随后用 `python jobs/tools/configure_cluster.py` 定位集群路径并检查数据。数据与全部求解器小测试通过后再提交正式实验。
 
 ## 文件分工
 
 沿用旧实验的 codes / jobs / analysis 组织方式和入口名称。
-`jobs/goSolver.py` 只负责实例调度、调用求解程序与结果落盘。
-`jobs/generate_scripts.py` 生成配置计划，再调用 `jobs/generate_slurm.py` 写出 Slurm 提交脚本。
+内部调度和资源控制位于 `jobs/internal/`，MIPO 转换位于 `jobs/data/`，环境和路径检查位于 `jobs/tools/`。结果交付脚本位于 `analysis/`，集群操作说明位于 `docs/`。
+`jobs/goSolver.py` 负责读取实例清单、并行调度、调用求解程序与结果落盘。它对应传统脚本中遍历输入、执行 solver、保存输出的部分，额外执行本项目必需的编码和原问题验解。
+`jobs/generate_scripts.py` 决定跑哪些数据和方法、并行数、内存和时间，生成配置计划，再调用 `jobs/generate_slurm.py` 写出 Slurm 提交脚本。只需运行 generate_scripts.py；generate_slurm.py 是它调用的内部写脚本函数，不需要再运行一次。
 求解算法、编码和数学规划建模位于 `codes/`；汇总与画图位于 `analysis/`。
 `goSolver.py` 结束后调用独立的 `analysis/summarize.py`，提交脚本为全批分析设置作业依赖。
 自动调用不改变分工，分析程序也可单独运行，无需重新求解。
@@ -50,11 +74,11 @@ SAT/优化成功状态必须有原模型可行性与目标值验解。UNSAT 是�
 
 监督器在求解阶段达到 3,600 秒时终止整个进程组，外围 4,000 秒不是延长求解预算。验解超时、求解超时、外围超时、内存超限分别记录。终止清理和监测有少量调度开销，超时后返回的结果不能算成预算内成功。
 
-`--workers N` 表示一个配置作业内 N 个同时执行的单核任务，绑定不同物理核。默认按“数据组＋方法”拆为 61 个 Slurm 数组元素，每个元素申请 normal 独占节点、7 核、120G；最多 3 个元素同时运行，总计最多 21 个实例并行。`--concurrent-jobs 4` 可改为最多 28 路，实际获配以账户和调度器为准。Ubuntu 约 3.6 GiB 内存只用于单任务小实例验收。
+`--workers N` 表示一个配置作业内 N 个同时执行的单核任务，绑定不同物理核。默认 61 个 Slurm 数组元素，每个元素申请 manycore-amd 的一台独占节点、90 核、1450G；数组并发为 1，同一时刻只运行一个配置作业，最多 90 个实例并行。当前配置完成后，下一个配置继续。Slurm 可能分配另一台同类节点，不固定节点名称。Ubuntu 约 3.6 GiB 内存只用于单任务小实例验收。
 
 每个配置作业的实例集合互不重复。例如 QPLIB/OH/RC2 的一个作业处理该配置下 137 个实例，MIPO/BIN+D/MaxHS 的另一个作业处理该配置下 870 个实例。数组元素编号固定，代码版本、方法参数和实例清单在准备时记录；运行时检查是否改变。每个配置使用独立输出目录与运行锁，重复启动不会同时写同一目录。
 
-作业时长按最长配置的实例数、worker 数和 4000 秒外围预算计算并留 2 小时余量。默认申请 141 小时，最长的 870 个实例按 7 路计算仍在此范围内；不是对整个主实验只给 141 小时。
+作业时长按最长配置的实例数、worker 数和 4000 秒外围预算计算并留 2 小时余量。默认每配置作业申请 14 小时，最长的 870 个实例按 90 路计算仍在此范围内；不是对整个主实验只给 14 小时。
 
 ## 求解器与数据
 
@@ -64,44 +88,36 @@ Ubuntu 测试版本：CPLEX 22.1.2.1、HiGHS/highspy 1.15.1，其余固定版本
 
 逐个解析优化输入已确认：QPLIB 137 个中有 16 个带非线性约束；目标次数统计为 126 个二次、11 个线性；Diverse SAT 108 个均为二次目标、线性约束；MIPO 870 个均有四次项。当前四组入口都不提供 factor_blocks，LRN 在本主矩阵中不触发。SMT 150 个核对了清单与入口，求解语义由专项测试和逐次原问题验解检查。
 
-MIPO 使用发布包的 `integer/txtfiles`，870 个文件转换到 `benchmarks/mipo`，精确保留 TXT 系数，目标为最小化。TXT 与同包 NL 的小数精度并非总相同，不能把 NL 文件的浮点系数静默当作 TXT 的精确 oracle。转换器为 `convert_mipo.py`。
+MIPO 使用手动下载的发布包的 `integer/txtfiles`，870 个文件转换到 `benchmarks/mipo`，精确保留 TXT 系数，目标为最小化。TXT 与同包 NL 的小数精度并非总相同，不能把 NL 文件的浮点系数静默当作 TXT 的精确 oracle。转换器为 `convert_mipo.py`。
 
 集群 `config.json` 沿用历史路径 `/scratch/scherif/NLIP/NLIP/benchmarks` 与 `/scratch/scherif/NLIP/NLIP/solvers/maxsat`。MIPO 指向同包 `benchmarks/mipo`。三个外部二进制名称为 `maxhs`、`wmaxcdcl`、`openwbo`。上述路径、分区和许可证须在真实集群确认；Ubuntu 通过不等于已经在集群计算节点验证。
 
-## 部署和运行
+## 运行参数
 
 保留 `codes/`、`jobs/`、`analysis/`、`benchmarks/` 相对布局。集群已有研究目录时，将改动应用到活动 checkout；单独解压交付包时，在解压根目录初始化 Git 并提交代码和清单，正式入口据此记录版本。不要提交 `.venv` 或输出目录。
 
 ```bash
-cd jobs
-python3.9 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m pip install -r ../analysis/requirements-analysis.txt
-# 如集群安装了完整 CPLEX，用对应完整 Python API 替代 Community Edition。
-export AIJ_PYTHON="$PWD/.venv/bin/python"
+# 只生成完整正式矩阵的运行计划。
+python jobs/goSolver.py --profile formal
 
-# 展开完整矩阵、确认实际数据路径，不启动实验。
-"$AIJ_PYTHON" goSolver.py --profile formal
-# Ubuntu 加 --config config.ubuntu.json；集群使用默认 config.json。
-"$AIJ_PYTHON" goSolver.py --profile smoke --execute --output ../results/cluster-smoke
+# 生成单节点批量任务，再用 sbatch 提交。
+python jobs/generate_scripts.py
+bash results/main/submit.sh
 
-# 准备 61 个配置作业，默认每个 7 路、同时最多 3 个作业。仅生成，不提交。
-"$AIJ_PYTHON" generate_scripts.py --output ../results/aij-main-config
-# 集群路径、依赖和 CPLEX 完整许可证验收后，执行这一行才实际提交。
-bash ../results/aij-main-config/submit.sh
-# submit.sh 同时登记依赖分析作业；手动更新总表、配置表及累计图使用：
-"$AIJ_PYTHON" ../analysis/analyze_campaign.py ../results/aij-main-config
-# 可选提速：准备阶段指定 --partition bigmem --workers 28 --concurrent-jobs 4，最多 112 路，自动申请每作业 460G。
-# 原定分解对照：另用 --matrix decomposition --output ../results/aij-decomposition-config。
-# 续跑：确认同一数组已停止后，重交同一 submit.sh；已完成记录自动跳过。
+# 全部配置的小实例；外部求解器的路径先配置好。
+sbatch --time=00:45:00 jobs/test.slurm all
+
+# 生成分解对照任务；与主实验分开提交。
+python jobs/generate_scripts.py --matrix decomposition
+
+# 正式实验后的汇总、表格和画图。
+python analysis/analyze_campaign.py results/main
 ```
 
 监督器处理 Slurm 结束信号并清理子进程。续跑允许改派同 CPU 型号、同系统平台的节点，仍要求代码、依赖版本、配置、worker 数及输入一致；每条结果记录实际主机和 CPU。`run.json` 记录配置环境，`result.json` 保留原问题见证与精确目标，`summarize_campaign.py` 将各配置合并为一份表并保留未完成项。旧实验数据是否复用仍逐配置判断。
 
-`run_slurm.sh` 保留为单作业兼容入口，已改为 7 核、120G；多配置并行使用上面的 campaign 流程，不重复提交完整矩阵。
-
 全批结果位于 campaign 目录的 `results.csv`，每配置表位于 `sumup/`，比较表和累计求解图位于 `analysis/`。
-列和统计口径见 `CLUSTER_DEPLOYMENT.md` 的“结果落盘与分析”。所有计划行均保留；未完成配置不报告完整批次 PAR-2。
+所有计划行均保留；未完成配置不报告完整批次 PAR-2。
 
 
-MatriCS 部署目录固定为 `/scratch/scherif/NLIP/NLIP-AIJ/`；旧数据和求解器根目录为 `/scratch/scherif/NLIP/NLIP/`。主实验结果写入新项目 `results/aij-main/`，新 MIPO 写入 `benchmarks/mipo/`。脚本默认使用新安装位置，可通过 `AIJ_RUNNER_DIR` 和 `AIJ_PYTHON` 指定实际运行环境。
+当前 MatriCS checkout 为 `/scratch/scherif/NLIP/AIJ/NLIP-Journal-Artifact-/`；旧数据和求解器根目录为 `/scratch/scherif/NLIP/NLIP/`。主实验结果写入本项目 `results/main/`，MIPO 写入 `benchmarks/mipo/`。生成的作业记录项目和 Python 的实际绝对路径。

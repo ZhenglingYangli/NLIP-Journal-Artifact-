@@ -10,7 +10,7 @@ import tempfile
 ROOT=Path(__file__).resolve().parents[1] / 'jobs'
 sys.path.insert(0,str(ROOT))
 from goSolver import load_config, methods, available_cpus
-from supervisor import supervise
+from internal.supervisor import supervise
 
 config=load_config(ROOT/'config.ubuntu.json')
 p={'variables':{'x':{'lb':-1,'ub':2},'y':{'lb':0,'ub':1}},'constraints':[],
@@ -27,7 +27,7 @@ with tempfile.TemporaryDirectory() as work:
              'solver_paths':config['solver_paths'],'solve_seconds':20,'cpu':available_cpus()[0],
              'smoke_expected':{'status':'OPTIMAL','objective_exact':'17/2'}}
         path=folder/'job.json'; path.write_text(json.dumps(job))
-        result=supervise([config['python'],str(ROOT/'worker.py'),str(path)],folder,config['profiles']['smoke'])
+        result=supervise([config['python'],str(ROOT/'internal/worker.py'),str(path)],folder,config['profiles']['smoke'])
         rows.append({'method':method['id'],'status':result['status'],'verified':result['verified'],
                      'objective':result.get('objective_exact'),'lrn':result.get('encoding_stats',{}).get('lrn')})
         assert result['status']=='OPTIMAL' and result['verified'],(method,result,(folder/'stdout.log').read_text())

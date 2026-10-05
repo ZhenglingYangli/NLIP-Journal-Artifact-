@@ -7,8 +7,8 @@
 #SBATCH --mem=4G
 #SBATCH --time=00:30:00
 set -euo pipefail
-export AIJ_RUNNER_DIR="${AIJ_RUNNER_DIR:-/scratch/scherif/NLIP/NLIP-AIJ/jobs}"
-export AIJ_PYTHON="${AIJ_PYTHON:-$AIJ_RUNNER_DIR/.venv/bin/python}"
+export AIJ_RUNNER_DIR="${AIJ_RUNNER_DIR:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../jobs" && pwd)}"
+export AIJ_PYTHON="${AIJ_PYTHON:-$(command -v python3)}"
 : "${AIJ_CAMPAIGN:?Set AIJ_CAMPAIGN}"
 cd "$AIJ_RUNNER_DIR/../analysis"
 export MPLBACKEND=Agg

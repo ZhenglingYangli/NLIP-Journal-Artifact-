@@ -16,7 +16,7 @@ def load(name, path):
     spec.loader.exec_module(module)
     return module
 
-environment = load('environment', 'jobs/check_environment.py')
+environment = load('environment', 'jobs/tools/check_environment.py')
 delivery = load('delivery', 'analysis/export_results.py')
 
 class EnvironmentTests(unittest.TestCase):

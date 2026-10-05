@@ -1,29 +1,23 @@
-"""Download the authors' MIPO archive and reproduce the fixed integer TXT inputs."""
+"""Convert a manually downloaded MIPO archive using the fixed integer TXT list."""
 import argparse
 import json
 from pathlib import Path
 import tarfile
 import tempfile
-import urllib.request
 from convert_mipo import convert
 
-URL = 'https://wwwold.mathematik.tu-dortmund.de/lsv/instances/mipo.tar.gz'
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--archive', type=Path, help='use a previously downloaded authors archive')
+    ap.add_argument('--archive', type=Path, required=True, help='manually downloaded authors archive')
     ap.add_argument('--output', type=Path, default=ROOT / 'benchmarks/mipo')
     a = ap.parse_args()
     manifest = ROOT / 'benchmarks/manifests/mipo_list.txt'
     names = manifest.read_text().splitlines()
     with tempfile.TemporaryDirectory(prefix='aij-mipo-') as tmp:
         archive = a.archive
-        if archive is None:
-            archive = Path(tmp) / 'mipo.tar.gz'
-            print('Downloading ' + URL, flush=True)
-            urllib.request.urlretrieve(URL, archive)
         models = {}
         with tarfile.open(archive, 'r:gz') as tar:
             for member in tar.getmembers():

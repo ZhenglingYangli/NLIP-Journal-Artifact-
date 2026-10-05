@@ -77,7 +77,7 @@ def make_jobs(config, profile, matrix, families):
                 direct = directory / name
                 matches = [direct] if direct.is_file() else index.get(name, [])
                 if len(matches) != 1:
-                    raise ValueError(f'{family}/{name}: expected one input, found {len(matches)}')
+                    raise ValueError(f'{family}/{name}: expected one input, found {len(matches)}; search directory: {directory}')
                 files.append(matches[0])
         for number, path in enumerate(files, 1):
             for method in methods(desc['task'], matrix, family):
@@ -140,17 +140,38 @@ def resume_compatible(previous, current):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--config', default=str(ROOT / 'config.json'))
+    ap.add_argument('action', nargs='?', choices=['test', 'run'], help='test a bundled instance or run one formal configuration')
+    ap.add_argument('family', nargs='?', choices=['qplib', 'diverse', 'mipo', 'smt', 'all'])
+    ap.add_argument('method', nargs='?', help='method id, e.g. bin-rc2 or bin-cadical')
+    ap.add_argument('--config')
     ap.add_argument('--profile', choices=['smoke', 'formal'], default='smoke')
     ap.add_argument('--matrix', choices=['main', 'decomposition', 'baselines'], default='main')
     ap.add_argument('--families', nargs='+', choices=['qplib', 'diverse', 'mipo', 'smt'], default=['qplib', 'diverse', 'mipo', 'smt'])
-    ap.add_argument('--workers', type=int, default=1)
+    ap.add_argument('--workers', type=int)
     ap.add_argument('--methods', nargs='+', help='run only these exact method ids')
     ap.add_argument('--output', type=Path)
     ap.add_argument('--plan-output', type=Path, help='save the expanded job list without running it')
     ap.add_argument('--execute', action='store_true', help='execute instead of printing the plan')
     ap.add_argument('--resume', action='store_true', help='continue jobs that have no completed result')
     args = ap.parse_args()
+    if args.action:
+        if args.action == 'run' and (args.family in (None, 'all') or not args.method):
+            ap.error('run requires a family and method, e.g. run qplib bin-rc2')
+        args.profile = 'smoke' if args.action == 'test' else 'formal'
+        if args.family == 'all':
+            if args.method:
+                ap.error('test all runs the complete matrix; omit the method')
+            args.families = ['qplib', 'diverse', 'mipo', 'smt']
+            args.methods = None
+        else:
+            args.families = [args.family or 'qplib']
+            args.methods = [args.method or ('bin-cadical' if args.family == 'smt' else 'bin-rc2')]
+        args.execute = True
+    if args.workers is None:
+        args.workers = 7 if args.action == 'run' else 1
+    if args.config is None:
+        site_config = ROOT / 'config.cluster.json'
+        args.config = str(site_config if (args.profile == 'formal' or args.action) and site_config.exists() else ROOT / 'config.json')
     config = load_config(args.config)
     jobs = make_jobs(config, args.profile, args.matrix, args.families)
     if args.methods:
@@ -172,7 +193,7 @@ def main():
     if os.name != 'posix':
         raise ValueError('execution requires Linux; edit/run this package on the Ubuntu or cluster host')
     import psutil
-    from supervisor import supervise
+    from internal.supervisor import supervise
     cpus = available_cpus()
     if args.workers < 1 or args.workers > len(cpus):
         raise ValueError(f'workers must be between 1 and {len(cpus)} available distinct cores')
@@ -192,7 +213,7 @@ def main():
     execution_identity = git_identity(str(ROOT))
     if args.profile == 'formal' and (identity['dirty'] or execution_identity['dirty']):
         raise ValueError('commit both the active solver and experiment runner code before a formal batch')
-    if args.profile == 'formal' and any(j['method']['solver'].startswith('CPLEX') for j in jobs):
+    if any(j['method']['solver'].startswith('CPLEX') for j in jobs):
         check_cplex_license(config['python'])
     versions = subprocess.check_output([config['python'], '-c',
         "import importlib.metadata as m,json,sys; print(json.dumps({'python':sys.version, **{p:m.version(p) for p in ['python-sat','pypblib','z3-solver','psutil']}}))"], text=True)
@@ -256,7 +277,7 @@ def main():
             payload = dict(job, cpu=cpu)
             jobfile = folder / 'job.json'
             jobfile.write_text(json.dumps(payload, ensure_ascii=False, indent=2))
-            command = [config['python'], '-u', str(ROOT / 'worker.py'), str(jobfile)]
+            command = [config['python'], '-u', str(ROOT / 'internal/worker.py'), str(jobfile)]
             result = supervise(command, folder, limits, stop)
             if result['status'] == 'INTERRUPTED':
                 return None
@@ -282,6 +303,16 @@ def main():
         pool.shutdown(wait=True, cancel_futures=True)
     subprocess.run([config["python"], str(ROOT.parent / "analysis/summarize.py"), str(output)], check=True)
     print('Results:', output)
+    if args.profile == 'smoke':
+        failures = []
+        for job in jobs:
+            path = output / 'jobs' / job['id'] / 'result.json'
+            result = json.loads(path.read_text()) if path.exists() else {}
+            if not result.get('verified') or any(result.get(key) != value for key, value in job['smoke_expected'].items()):
+                failures.append(job['id'])
+        if failures:
+            raise ValueError('small-instance tests failed: ' + ', '.join(failures))
+        print(f'Tests passed: {len(jobs)} (expected answers and original-problem verification)')
 
 
 if __name__ == '__main__':

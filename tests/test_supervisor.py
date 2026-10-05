@@ -10,7 +10,7 @@ import unittest
 import psutil
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from supervisor import supervise
+from internal.supervisor import supervise
 
 
 class Supervision(unittest.TestCase):

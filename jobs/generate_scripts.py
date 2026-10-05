@@ -7,6 +7,17 @@ import shlex
 from generate_slurm import write_submission
 from goSolver import ROOT, load_config, methods, git_identity
 
+PARALLEL_NUM = 90
+PARTITION = 'manycore-amd'
+MEMORY_GIB = 1450
+CONCURRENT_JOBS = 1
+
+PARTITION_LIMITS = {
+    'normal': (28, 125, 360, 4),
+    'bigmem': (28, 500, 360, 4),
+    'bigmem-amd': (64, 1000, 240, 2),
+    'manycore-amd': (256, 1520, 240, 2),
+}
 
 def configuration_tasks(config, profile, matrix):
     tasks=[]
@@ -21,25 +32,36 @@ def configuration_tasks(config, profile, matrix):
     ids=[j for t in tasks for j in t['job_ids']]
     if len(ids)!=len(set(ids)):
         raise ValueError('overlapping configuration tasks')
+    tasks.sort(key=lambda task: len(task['job_ids']), reverse=True)
     return tasks
 
 
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
-    ap.add_argument('--config',default=str(ROOT/'config.json'))
+    ap.add_argument('--config')
     ap.add_argument('--profile',choices=['formal','smoke'],default='formal')
     ap.add_argument('--matrix',choices=['main','decomposition'],default='main')
-    ap.add_argument('--output',required=True,type=Path)
-    ap.add_argument('--workers',type=int,default=7)
-    ap.add_argument('--partition',choices=['normal','bigmem'],default='normal')
-    ap.add_argument('--concurrent-jobs',type=int,default=3)
-    ap.add_argument('--memory-gib',type=int,help='default 120 GiB for 7 formal workers; sized from worker budgets')
-    a=ap.parse_args(); config=load_config(a.config)
+    ap.add_argument('--output',type=Path)
+    ap.add_argument('--workers',type=int,default=PARALLEL_NUM)
+    ap.add_argument('--partition',choices=list(PARTITION_LIMITS),default=PARTITION)
+    ap.add_argument('--concurrent-jobs',type=int,default=CONCURRENT_JOBS)
+    ap.add_argument('--memory-gib',type=int,help='default 1450 GiB for 90 formal workers; sized from worker budgets')
+    a=ap.parse_args()
+    if a.config is None:
+        site_config=ROOT/'config.cluster.json'
+        a.config=str(site_config if site_config.exists() else ROOT/'config.json')
+    if a.output is None:
+        name=a.matrix if a.profile=='formal' else 'smoke-'+a.matrix
+        a.output=ROOT.parent/'results'/name
+    config=load_config(a.config)
     if a.memory_gib is None:
-        a.memory_gib=460 if a.workers==28 else ceil((a.workers*config['profiles'][a.profile]['memory_gib']+.5)/10)*10
-    if not 1<=a.workers<=28 or not 1<=a.concurrent_jobs<=4:
-        raise ValueError('campaign supports 1..28 workers/job and 1..4 simultaneous exclusive nodes')
-    memory_max=125 if a.partition=='normal' else 500
+        if a.profile=='formal' and a.workers==PARALLEL_NUM:
+            a.memory_gib=MEMORY_GIB
+        else:
+            a.memory_gib=460 if a.workers==28 else ceil((a.workers*config['profiles'][a.profile]['memory_gib']+.5)/10)*10
+    cores_max,memory_max,time_max,concurrent_max=PARTITION_LIMITS[a.partition]
+    if not 1<=a.workers<=cores_max or not 1<=a.concurrent_jobs<=concurrent_max:
+        raise ValueError(f'{a.partition}: workers must be 1..{cores_max}; concurrent jobs must be 1..{concurrent_max}')
     if a.memory_gib < a.workers*config['profiles'][a.profile]['memory_gib']+.5 or a.memory_gib>memory_max:
         raise ValueError(f'memory must cover worker budgets plus runner reserve and be <={memory_max} GiB on {a.partition}')
     tasks=configuration_tasks(config,a.profile,a.matrix)
@@ -47,8 +69,8 @@ def main():
     # Size the job from the largest configuration and the outer per-run cap.
     worst=max(ceil(len(t['job_ids'])/a.workers)*limits['outer_seconds'] for t in tasks)
     wall_hours=ceil(worst/3600)+2
-    if wall_hours>360:
-        raise ValueError('configuration exceeds the 15-day job limit; increase workers')
+    if wall_hours>time_max:
+        raise ValueError(f'configuration exceeds the {time_max}-hour job limit on {a.partition}; increase workers')
     plan={'config':str(Path(a.config).resolve()),'profile':a.profile,'matrix':a.matrix,
           'partition':a.partition,'workers':a.workers,'concurrent_jobs':a.concurrent_jobs,'memory_gib':a.memory_gib,
           'configuration_jobs':len(tasks),'instance_runs':sum(len(t['job_ids']) for t in tasks),'tasks':tasks}

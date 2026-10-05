@@ -14,7 +14,7 @@ sys.path.insert(0,str(ROOT))
 sys.path.insert(0,str(ROOT.parent/'codes'/'codes'))
 from solvers.baseline import scip_baseline as baseline
 from pyscipopt import SCIP_PARAMSETTING
-from supervisor import supervise
+from internal.supervisor import supervise
 from goSolver import available_cpus, load_config
 
 problem = {'variables':{'x':{'lb':0,'ub':2}},'constraints':[],
@@ -50,7 +50,7 @@ for solver in ['SCIP-MILP','SCIP-NATIVE']:
                'method':{'id':solver.lower(),'solver':solver},'task':'optimization',
                'input':str(ROOT/'smoke/cross.qplib'),'solver_paths':{},'solve_seconds':.02}
         (path/'job.json').write_text(json.dumps(job))
-        answer = supervise([config['python'],'-u',str(ROOT/'worker.py'),str(path/'job.json')],path,
+        answer = supervise([config['python'],'-u',str(ROOT/'internal/worker.py'),str(path/'job.json')],path,
                            {'solve_seconds':.02,'verify_seconds':5,'memory_gib':1,'poll_seconds':.005})
         assert answer['status']=='TIMEOUT',answer
         records.append({'check':solver+'-outer-deadline','status':answer['status'],'wall_seconds':answer['wall_seconds']})

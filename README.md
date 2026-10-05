@@ -1,46 +1,48 @@
 # NLIP-AIJ experiment artifact
 
-主实验：QPLIB 137、Diverse SAT 108（k=2）、MIPO 870、有界 SMT 150；61 个配置、23,335 次运行。
-正式实验关闭 LRN。默认 normal、每作业 7 路、120G，同时最多 3 个配置作业。
+主实验包含 QPLIB 137、Diverse SAT 108（k=2）、MIPO 870、有界 SMT 150；61 个配置、23,335 次运行。正式实验关闭 LRN，求解预算 3600 秒，外围时限 4000 秒。
 
 ```text
-/scratch/scherif/NLIP/NLIP-AIJ/
-├── codes/                      # NLIPSat 核心、编码器、求解器接口
-│   └── solvers/baseline/        # Z3、SCIP、CPLEX、HiGHS、cvc5 接口
-├── jobs/                       # 实验调度与集群提交
-│   ├── goSolver.py             # 并行执行实例、调用求解代码、记录结果
-│   ├── generate_scripts.py     # 按数据集与方法生成实验计划
-│   ├── generate_slurm.py       # 生成 Slurm 提交脚本
-│   ├── start_cluster.sh        # 首次克隆或更新后启动
-│   └── run_cluster_all.sh      # 自动准备、测试、实验、分析及交付
-├── analysis/                   # 读取结果、汇总指标、比较与画图
-├── benchmarks/                 # 固定清单；MIPO 在目标机器准备
-├── tests/                      # 小实例与接口测试
-└── results/                    # 原始结果；每批内含 sumup 和 analysis/figures
+NLIP-Journal-Artifact-/
+├── codes/                 # NLIPSat、编码器和求解器接口
+├── jobs/
+│   ├── goSolver.py        # 跑实例与小测试
+│   ├── generate_scripts.py # 生成批量实验
+│   ├── generate_slurm.py  # 写出 Slurm 提交脚本
+│   ├── test.slurm         # 用 sbatch 提交小测试
+│   ├── config.json       # 路径和运行预算
+│   ├── internal/        # 内部执行与资源控制
+│   ├── data/            # 本地 MIPO 数据转换
+│   ├── tools/           # 环境和路径检查
+│   └── smoke/            # 自带小测试输入
+├── analysis/              # 汇总、统计、画图与精简结果导出
+├── benchmarks/            # 固定清单；MIPO 在目标机器准备
+├── tests/                 # 求解语义与结果统计测试
+└── results/               # 每个批次的原始结果和分析
 ```
 
-- 核心代码：`codes/`。外部基线建模和求解接口：`codes/solvers/baseline/`。
-- 跑实验：`jobs/goSolver.py`。
-- 生成计划与集群脚本：`jobs/generate_scripts.py`、`jobs/generate_slurm.py`。
-- 汇总分析：`analysis/summarize.py`、`analysis/summarize_campaign.py`、`analysis/analyze_campaign.py`。
-- [实验矩阵与运行说明](jobs/README.md)
-- [集群部署与数据准备](jobs/CLUSTER_DEPLOYMENT.md)
-
-在 jobs 目录运行：
+从项目根目录运行：
 
 ```bash
-python generate_scripts.py --config config.cluster.json --output ../results/aij-main
-# 检查计划后才提交：
-bash ../results/aij-main/submit.sh
-# 单独重算汇总和分析：
-python ../analysis/analyze_campaign.py ../results/aij-main
+# 在计算节点上跑一个小测试。
+sbatch jobs/test.slurm
+
+# 准备好路径和求解器后，测试全部 61 个配置。
+sbatch --time=00:45:00 jobs/test.slurm all
+
+# 生成正式任务，再提交。
+python jobs/generate_scripts.py
+bash results/main/submit.sh
+
+# 汇总分析。
+python analysis/analyze_campaign.py results/main
 ```
 
-每批原始结果保存在 `results/<批次>/runs/`；总表为 `results.csv`，旧格式汇总表为 `sumup/`，
-比较表为 `analysis/`，图为 `analysis/figures/`，均在同一批次目录内。不同批次不会混合。
-MIPO 由 `jobs/prepare_mipo.py` 从作者原包下载转换。数据、原始运行输出、虚拟环境及许可证不上传 GitHub；精简结果在 deliveries 中交付。
+正式默认配置为 manycore-amd、每作业 90 路、1450G，同时只运行 1 个配置作业；每个配置作业申请 1 台节点，每个实例仍为单核心、16 GiB。生成的 submit.sh 自动登记实验结束后的分析作业。
 
-合作者集群操作：[操作说明](jobs/COLLABORATOR_GUIDE.md)。已有项目可运行 `bash jobs/run_cluster_all.sh --push` 自动接续全部流程；首次获取代码可下载并运行 `jobs/start_cluster.sh`。分步操作仍使用 `bash jobs/run_cluster_pipeline.sh help`。
+- [集群手动操作](docs/COLLABORATOR_GUIDE.md)
+- [实验矩阵、预算和求解语义](jobs/README.md)
 
+当前 MatriCS checkout 为 `/scratch/scherif/NLIP/AIJ/NLIP-Journal-Artifact-/`，旧数据和求解器根目录为 `/scratch/scherif/NLIP/NLIP/`。路径可在站点配置中修改。
 
-MatriCS 部署目录固定为 `/scratch/scherif/NLIP/NLIP-AIJ/`；旧数据和求解器根目录为 `/scratch/scherif/NLIP/NLIP/`。主实验结果写入新项目 `results/aij-main/`，新 MIPO 写入 `benchmarks/mipo/`。脚本默认使用新安装位置，可通过 `AIJ_RUNNER_DIR` 和 `AIJ_PYTHON` 指定实际运行环境。
+原始结果位于 `results/<批次>/runs/`，总表为 `results.csv`，旧格式汇总表为 `sumup/`，比较表与图为 `analysis/`。MIPO 使用作者原始整数 TXT 转换得到的 870 个实例。原始数据、运行日志、虚拟环境和许可证不上传 GitHub；精简结果由 `analysis/export_results.py` 导出到 deliveries。

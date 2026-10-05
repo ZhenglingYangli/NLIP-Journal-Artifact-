@@ -6,10 +6,11 @@ def write_submission(plan, output, ROOT, wall_hours):
     command=['sbatch','--parsable',f'--partition={plan["partition"]}',f'--array=0-{plan["configuration_jobs"]-1}%{plan["concurrent_jobs"]}',f'--cpus-per-task={plan["workers"]}',
              f'--mem={plan["memory_gib"]}G',f'--time={wall_hours//24}-{wall_hours%24:02d}:00:00',
              f'--output={output}/slurm-%A_%a.log',
-             f'--export=ALL,AIJ_RUNNER_DIR={ROOT},AIJ_CAMPAIGN={output}',str(ROOT/'run_config_array.sh')]
+             f'--export=ALL,AIJ_RUNNER_DIR={ROOT},AIJ_CAMPAIGN={output}',str(ROOT/'internal/run_config_array.sh')]
     analysis=['sbatch','--parsable',f'--output={output}/analysis-%j.log',
               f'--export=ALL,AIJ_RUNNER_DIR={ROOT},AIJ_CAMPAIGN={output}',str(ROOT.parent/'analysis/run_campaign_analysis.sh')]
-    script='#!/usr/bin/env bash\nset -euo pipefail\n: "${AIJ_PYTHON:?Set AIJ_PYTHON to the experiment interpreter}"\n'
+    script='#!/usr/bin/env bash\nset -euo pipefail\n'
+    script+='export AIJ_PYTHON='+shlex.quote(plan['config_snapshot']['python'])+'\n'
     script+='"$AIJ_PYTHON" -c "import matplotlib"\n'
     script+='array_id=$('+shlex.join(command)+')\narray_id=${array_id%%;*}\n'
     script+='printf "%s\\n" "$array_id" > '+shlex.quote(str(output/'array_job_id.txt'))+'\n'

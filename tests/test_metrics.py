@@ -10,7 +10,7 @@ import unittest
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from telemetry import problem_features, quality
-from supervisor import supervise
+from internal.supervisor import supervise
 from result_table import row_for
 
 

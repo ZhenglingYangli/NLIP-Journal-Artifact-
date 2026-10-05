@@ -1,8 +1,10 @@
 """Resolve known cluster paths and check all selected inputs before submission."""
 import json
 import os
+import sys
 from pathlib import Path
 from collections import Counter
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from goSolver import ROOT, load_config, make_jobs
 
 
@@ -23,6 +25,8 @@ def main():
             legacy + '/solvers/maxsat/' + name, shared + ('wmaxcdcl_24' if key == 'WMAXCDCL' else name)], True)
     if os.environ.get('NLIP_DIVERSE_ROOT'):
         config['families']['diverse']['input_root'] = os.environ['NLIP_DIVERSE_ROOT']
+    if os.environ.get('NLIP_MIPO_ROOT'):
+        config['families']['mipo']['input_root'] = os.environ['NLIP_MIPO_ROOT']
     # Only the resolved site config is local; committed source stays clean.
     destination = ROOT / 'config.cluster.json'
     destination.write_text(json.dumps(config, indent=2) + '\n')

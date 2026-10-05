@@ -54,7 +54,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--install-missing', action='store_true')
     args = parser.parse_args()
-    root = Path(__file__).resolve().parent.parent
+    root = Path(__file__).resolve().parents[2]
     packages = list(requirements(root / 'jobs/requirements.txt'))
     packages += list(requirements(root / 'analysis/requirements-analysis.txt'))
     print(f'当前 Python：{sys.executable}')

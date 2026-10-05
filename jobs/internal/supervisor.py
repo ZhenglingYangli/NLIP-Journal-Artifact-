@@ -8,7 +8,7 @@ import threading
 import time
 import psutil
 import sys
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "codes"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "codes"))
 from telemetry import merge
 
 

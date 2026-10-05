@@ -6,7 +6,7 @@ PROJECT_DIR="$(cd -- "$JOBS_DIR/.." && pwd)"
 action="${1:-help}"
 batch="${2:-aij-main}"
 if [[ "$action" != export && "$action" != push ]]; then
-  echo '用法：bash jobs/push_results.sh export|push [批次名]'
+  echo '用法：bash analysis/push_results.sh export|push [批次名]'
   echo 'export：导出精简结果，并把验解记录包留在 results；不提交、不推送。'
   echo 'push：确认队列中的本项目作业已结束，提交 deliveries 到 results-<批次名> 分支并推送。'
   [[ "$action" == help || "$action" == --help || "$action" == -h ]] && exit 0
@@ -16,7 +16,7 @@ fi
 cd "$PROJECT_DIR"
 campaign="$PROJECT_DIR/results/$batch"
 delivery="deliveries/$batch"
-python="${AIJ_PYTHON:-$JOBS_DIR/.venv/bin/python}"
+python="${AIJ_PYTHON:-$(command -v python3)}"
 [[ -x "$python" ]] || { echo "Python 不可用：$python" >&2; exit 1; }
 if [[ "$action" == export ]]; then
   "$python" "$PROJECT_DIR/analysis/export_results.py" --campaign "$campaign" --output "$PROJECT_DIR/$delivery"

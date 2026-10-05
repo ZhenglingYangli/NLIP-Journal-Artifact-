@@ -5,11 +5,12 @@ import json
 import sys
 import contextlib
 import io
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from goSolver import load_config, make_jobs
 
 
 def main():
-    config=load_config(sys.argv[1] if len(sys.argv)>1 else Path(__file__).with_name('config.ubuntu.json'))
+    config=load_config(sys.argv[1] if len(sys.argv)>1 else Path(__file__).resolve().parents[1] / 'config.ubuntu.json')
     sys.path.insert(0,config['code_root'])
     from nlipsat import load_problem
     jobs=make_jobs(config,'formal','main',['qplib','diverse','mipo','smt'])

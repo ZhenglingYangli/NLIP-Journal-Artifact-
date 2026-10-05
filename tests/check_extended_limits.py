@@ -12,7 +12,7 @@ import tempfile
 ROOT=Path(__file__).resolve().parents[1] / 'jobs'
 sys.path.insert(0, str(ROOT))
 from goSolver import available_cpus, methods, load_config
-from supervisor import supervise
+from internal.supervisor import supervise
 
 parser = argparse.ArgumentParser()
 parser.add_argument('output', type=Path)
@@ -32,7 +32,7 @@ for method, family in routes:
                'input': str(ROOT/'smoke'/desc['smoke_file']), 'solver_paths': config['solver_paths'],
                'solve_seconds': .02}
         (path/'job.json').write_text(json.dumps(job))
-        result = supervise([config['python'], '-u', str(ROOT/'worker.py'), str(path/'job.json')], path,
+        result = supervise([config['python'], '-u', str(ROOT/'internal/worker.py'), str(path/'job.json')], path,
                            {'solve_seconds': .02, 'verify_seconds': 5, 'memory_gib': 1, 'poll_seconds': .005})
         assert result['status'] == 'TIMEOUT', (method, result)
         rows.append({'method': method['id'], 'status': result['status'], 'wall_seconds': result['wall_seconds']})
