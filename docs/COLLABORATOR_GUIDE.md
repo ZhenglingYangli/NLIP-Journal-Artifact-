@@ -95,3 +95,5 @@ python analysis/export_results.py --campaign results/decomposition --output deli
 ```
 
 交付包含结果表、分析表与图、报告、配置、清单和运行环境。原始日志与输入不进入 deliveries；验解记录包保留在各批次的 `verification-records.tar.gz`，另行备份或传输。GitHub 推送由操作者在所有项目作业结束后手动进行。
+
+代码版本由登录节点在生成和提交时用 Git 检查，计算节点从已准备的 campaign.json 读取版本记录，不要求节点安装 Git。独立小测试的版本字段可为空；正式结果仍记录提交版本。批次运行期间不要修改 checkout。

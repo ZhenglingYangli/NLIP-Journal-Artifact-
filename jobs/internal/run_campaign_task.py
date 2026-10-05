@@ -10,16 +10,23 @@ from goSolver import ROOT, load_config, methods, git_identity
 def main():
     ap=argparse.ArgumentParser()
     ap.add_argument('--campaign',required=True,type=Path)
-    ap.add_argument('--index',required=True,type=int)
+    ap.add_argument('--index',type=int)
+    ap.add_argument('--check-code',action='store_true',help='check the prepared version on the login node before submitting')
     a=ap.parse_args(); folder=a.campaign.resolve()
     plan=json.loads((folder/'campaign.json').read_text())
-    if not 0<=a.index<len(plan['tasks']): raise ValueError('invalid configuration index')
-    task=plan['tasks'][a.index]
-    config=load_config(plan['config']); desc=config['families'][task['family']]
+    config=load_config(plan['config'])
     if 'config_snapshot' in plan and config!=plan['config_snapshot']:
         raise ValueError('site configuration changed after preparing campaign')
-    if git_identity(config['code_root'], config['git'])!=plan['code_version'] or git_identity(str(ROOT), config['git'])!=plan['runner_version']:
-        raise ValueError('execution code changed after preparing campaign')
+    if a.check_code:
+        if git_identity(config['code_root'], config['git'])!=plan['code_version'] or git_identity(str(ROOT), config['git'])!=plan['runner_version']:
+            raise ValueError('execution code changed after preparing campaign')
+        if plan['profile']=='formal' and (plan['code_version']['dirty'] or plan['runner_version']['dirty']):
+            raise ValueError('commit the solver and runner code before preparing a formal campaign')
+        return
+    if a.index is None or not 0<=a.index<len(plan['tasks']): raise ValueError('invalid configuration index')
+    task=plan['tasks'][a.index]; desc=config['families'][task['family']]
+    os.environ['AIJ_CODE_VERSION']=json.dumps(plan['code_version'])
+    os.environ['AIJ_RUNNER_VERSION']=json.dumps(plan['runner_version'])
     current=next(m for m in methods(desc['task'],plan['matrix'],task['family']) if m['id']==task['method']['id'])
     if current!=task['method']: raise ValueError('method changed after preparing campaign')
     names=(Path(config['manifest_root'])/desc['manifest']).read_text().splitlines()

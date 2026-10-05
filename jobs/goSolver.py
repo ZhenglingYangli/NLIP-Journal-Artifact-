@@ -211,8 +211,15 @@ def main():
     for solver in {j['method']['solver'] for j in jobs} & set(config['solver_paths']):
         if not os.access(config['solver_paths'][solver], os.X_OK):
             raise ValueError(f'{solver} binary is missing or not executable: {config["solver_paths"][solver]}')
-    identity = git_identity(config['code_root'], config['git'])
-    execution_identity = git_identity(str(ROOT), config['git'])
+    if os.environ.get('AIJ_CODE_VERSION') and os.environ.get('AIJ_RUNNER_VERSION'):
+        identity = json.loads(os.environ['AIJ_CODE_VERSION'])
+        execution_identity = json.loads(os.environ['AIJ_RUNNER_VERSION'])
+    elif args.profile == 'smoke':
+        # Small diagnostics do not require Git on the compute node.
+        identity = execution_identity = {'commit': None, 'dirty': None}
+    else:
+        identity = git_identity(config['code_root'], config['git'])
+        execution_identity = git_identity(str(ROOT), config['git'])
     if args.profile == 'formal' and (identity['dirty'] or execution_identity['dirty']):
         raise ValueError('commit both the active solver and experiment runner code before a formal batch')
     if any(j['method']['solver'].startswith('CPLEX') for j in jobs):

@@ -13,6 +13,7 @@ def write_submission(plan, output, ROOT, wall_hours):
     script+='export AIJ_PYTHON='+shlex.quote(plan['config_snapshot']['python'])+'\n'
     script+='"$AIJ_PYTHON" -c "import matplotlib"\n'
     script+='export AIJ_GIT='+shlex.quote(plan['config_snapshot']['git'])+'\n'
+    script+='\"$AIJ_PYTHON\" '+shlex.join([str(ROOT/'internal/run_campaign_task.py'),'--campaign',str(output),'--check-code'])+'\n'
     script+='array_id=$('+shlex.join(command)+')\narray_id=${array_id%%;*}\n'
     script+='printf "%s\\n" "$array_id" > '+shlex.quote(str(output/'array_job_id.txt'))+'\n'
     script+='printf "Configuration array: %s\\n" "$array_id"\n'
