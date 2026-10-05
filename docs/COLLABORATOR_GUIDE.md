@@ -8,6 +8,7 @@ cd "$NLIP_WORKDIR"
 module load python/3.9.20
 module load optimizer/cplex/22.1.1.0
 source "$NLIP_WORKDIR/.venv/bin/activate"
+export AIJ_GIT="$(command -v git)"
 python --version
 ```
 
@@ -59,14 +60,14 @@ sbatch --time=00:45:00 jobs/test.slurm all
 python jobs/generate_scripts.py
 ```
 
-输出应为 formal/main、manycore-amd、90 workers、1450 GiB、1 concurrent job、61 configuration jobs、23,335 instance runs。确认 `git status --short` 没有实验代码和清单的未提交修改，再提交：
+输出应为 formal/main、bigmem-amd、60 workers、970 GiB、1 concurrent job、61 configuration jobs、23,335 instance runs。确认 `git status --short` 没有实验代码和清单的未提交修改，再提交：
 
 ```bash
 bash results/main/submit.sh
 squeue -u "$USER"
 ```
 
-每个配置作业申请一台节点，数组同一时刻只运行一个配置作业，作业内最多 90 个单核实例并行。生成的 submit.sh 记录选定的 Python 路径，提交数组作业并登记依赖分析作业。批次中运行时不要更新代码、配置或清单。
+每个配置作业申请一台节点，数组同一时刻只运行一个配置作业，作业内最多 60 个单核实例并行。生成的 submit.sh 记录选定的 Python 路径，提交数组作业并登记依赖分析作业。批次中运行时不要更新代码、配置或清单。
 
 6. 查看状态和分析：
 

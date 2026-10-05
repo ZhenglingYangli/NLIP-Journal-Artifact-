@@ -38,7 +38,7 @@ bash results/main/submit.sh
 python analysis/analyze_campaign.py results/main
 ```
 
-正式默认配置为 manycore-amd、每作业 90 路、1450G，同时只运行 1 个配置作业；每个配置作业申请 1 台节点，每个实例仍为单核心、16 GiB。生成的 submit.sh 自动登记实验结束后的分析作业。
+正式默认配置为 bigmem-amd、每作业 60 路、970G，同时只运行 1 个配置作业；每个配置作业申请 1 台节点，每个实例仍为单核心、16 GiB。生成的 submit.sh 自动登记实验结束后的分析作业。
 
 - [集群手动操作](docs/COLLABORATOR_GUIDE.md)
 - [实验矩阵、预算和求解语义](jobs/README.md)

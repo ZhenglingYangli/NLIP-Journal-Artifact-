@@ -7,9 +7,9 @@ import shlex
 from generate_slurm import write_submission
 from goSolver import ROOT, load_config, methods, git_identity
 
-PARALLEL_NUM = 90
-PARTITION = 'manycore-amd'
-MEMORY_GIB = 1450
+PARALLEL_NUM = 60
+PARTITION = 'bigmem-amd'
+MEMORY_GIB = 970
 CONCURRENT_JOBS = 1
 
 PARTITION_LIMITS = {
@@ -45,7 +45,7 @@ def main():
     ap.add_argument('--workers',type=int,default=PARALLEL_NUM)
     ap.add_argument('--partition',choices=list(PARTITION_LIMITS),default=PARTITION)
     ap.add_argument('--concurrent-jobs',type=int,default=CONCURRENT_JOBS)
-    ap.add_argument('--memory-gib',type=int,help='default 1450 GiB for 90 formal workers; sized from worker budgets')
+    ap.add_argument('--memory-gib',type=int,help='default 970 GiB for 60 formal workers; sized from worker budgets')
     a=ap.parse_args()
     if a.config is None:
         site_config=ROOT/'config.cluster.json'
@@ -74,10 +74,10 @@ def main():
     plan={'config':str(Path(a.config).resolve()),'profile':a.profile,'matrix':a.matrix,
           'partition':a.partition,'workers':a.workers,'concurrent_jobs':a.concurrent_jobs,'memory_gib':a.memory_gib,
           'configuration_jobs':len(tasks),'instance_runs':sum(len(t['job_ids']) for t in tasks),'tasks':tasks}
-    plan['code_version']=git_identity(config['code_root'])
+    plan['code_version']=git_identity(config['code_root'], config['git'])
     plan['config_snapshot']=config
     plan['limits']=limits
-    plan['runner_version']=git_identity(str(ROOT))
+    plan['runner_version']=git_identity(str(ROOT), config['git'])
     plan['manifests']={f:(Path(config['manifest_root'])/d['manifest']).read_text().splitlines()
                        for f,d in config['families'].items()}
     output=a.output.resolve(); output.mkdir(parents=True,exist_ok=True)

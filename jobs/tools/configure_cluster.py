@@ -1,6 +1,7 @@
 """Resolve known cluster paths and check all selected inputs before submission."""
 import json
 import os
+import shutil
 import sys
 from pathlib import Path
 from collections import Counter
@@ -18,6 +19,7 @@ def select(label, candidates, executable=False):
 def main():
     config = json.loads((ROOT / 'config.json').read_text())
     legacy = os.environ.get('NLIP_LEGACY_ROOT', '/scratch/scherif/NLIP/NLIP')
+    config['git'] = select('Git executable', [os.environ.get('AIJ_GIT'), shutil.which('git')], True)
     config['benchmark_root'] = select('NLIP_BENCHMARK_ROOT', [os.environ.get('NLIP_BENCHMARK_ROOT'), legacy + '/benchmarks'])
     shared = '/users/scherif/ComputeSpace/solvers/'
     for key, name in [('MAXHS', 'maxhs'), ('WMAXCDCL', 'wmaxcdcl'), ('OPENWBO', 'openwbo')]:

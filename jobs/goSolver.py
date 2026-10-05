@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import platform
 import signal
+import shutil
 import subprocess
 import sys
 import threading
@@ -52,6 +53,7 @@ def load_config(path):
         value = (config[key] or sys.executable) if key == 'python' else config[key]
         config[key] = (os.path.abspath(ROOT / os.path.expandvars(value))
                        if key == 'python' else resolve(value))
+    config['git'] = os.environ.get('AIJ_GIT') or config.get('git') or shutil.which('git') or 'git'
     config['solver_paths'] = {k: resolve(v) for k, v in config['solver_paths'].items()}
     for desc in config['families'].values():
         if 'input_root' in desc:
@@ -107,9 +109,9 @@ def available_cpus():
     return list(found.values())
 
 
-def git_identity(code):
+def git_identity(code, executable='git'):
     def git(*args):
-        return subprocess.check_output(['git', '-C', code, *args], text=True).strip()
+        return subprocess.check_output([executable, '-C', code, *args], text=True).strip()
     return {'commit': git('rev-parse', 'HEAD'),
             'dirty': bool(git('status', '--porcelain', '--', code))}
 
@@ -209,8 +211,8 @@ def main():
     for solver in {j['method']['solver'] for j in jobs} & set(config['solver_paths']):
         if not os.access(config['solver_paths'][solver], os.X_OK):
             raise ValueError(f'{solver} binary is missing or not executable: {config["solver_paths"][solver]}')
-    identity = git_identity(config['code_root'])
-    execution_identity = git_identity(str(ROOT))
+    identity = git_identity(config['code_root'], config['git'])
+    execution_identity = git_identity(str(ROOT), config['git'])
     if args.profile == 'formal' and (identity['dirty'] or execution_identity['dirty']):
         raise ValueError('commit both the active solver and experiment runner code before a formal batch')
     if any(j['method']['solver'].startswith('CPLEX') for j in jobs):

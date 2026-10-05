@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=aij-config
-#SBATCH --partition=manycore-amd
+#SBATCH --partition=bigmem-amd
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --exclusive

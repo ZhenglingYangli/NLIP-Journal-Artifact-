@@ -18,7 +18,7 @@ def main():
     config=load_config(plan['config']); desc=config['families'][task['family']]
     if 'config_snapshot' in plan and config!=plan['config_snapshot']:
         raise ValueError('site configuration changed after preparing campaign')
-    if git_identity(config['code_root'])!=plan['code_version'] or git_identity(str(ROOT))!=plan['runner_version']:
+    if git_identity(config['code_root'], config['git'])!=plan['code_version'] or git_identity(str(ROOT), config['git'])!=plan['runner_version']:
         raise ValueError('execution code changed after preparing campaign')
     current=next(m for m in methods(desc['task'],plan['matrix'],task['family']) if m['id']==task['method']['id'])
     if current!=task['method']: raise ValueError('method changed after preparing campaign')

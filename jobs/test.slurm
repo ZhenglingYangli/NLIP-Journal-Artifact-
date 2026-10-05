@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=nlip-test
-#SBATCH --partition=manycore-amd
+#SBATCH --partition=bigmem-amd
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
