@@ -70,34 +70,39 @@ for i in range(10):
     cons = [atom([t(rng.choice([-2,1,3]),x=rng.randrange(3),y=rng.randrange(3)) for _ in range(3)],rng.choice(['<=','>=','<','>','=']),rng.randrange(-3,5))]
     cases.append(case(f'polynomial-{i}',{'x':(-1,2),'y':(-1,1)},terms,cons,'max' if i%2 else 'min'))
 
-start = time.monotonic()
-rows = []
-for name,p in cases:
-    names = list(p['variables'])
-    points = [dict(zip(names,values)) for values in product(*(range(ceil(Fraction(str(v['lb']))),floor(Fraction(str(v['ub'])))+1) for v in p['variables'].values()))]
-    feasible = [point for point in points if all(satisfied(a,point) for a in p['constraints'])]
-    values = [evaluate(p['objective']['terms'],point) for point in feasible]
-    optimum = (max(values) if p['objective']['sense']=='max' else min(values)) if values else None
-    for route in ['milp','native']:
-        for point in points:
-            expected = point in feasible
-            model,_,_ = build_model(p,route,forced=point)
-            model.setRealParam('limits/time', 5)
-            model.optimize()
-            status = str(model.getStatus())
-            assert status in ('optimal','infeasible'),(name,route,point,status)
-            assert (status=='optimal')==expected,(name,route,point,status,expected)
-            model.freeProb()
-        result = solve(p,route,10)
-        assert result['status']==('UNSAT' if optimum is None else 'OPTIMAL'),(name,route,result)
-        if optimum is not None:
-            assert Fraction(result['objective_exact'])==optimum,(name,route,result,optimum)
-            assert result['verified']
-        rows.append({'case':name,'route':route,'assignments':len(points),'feasible':len(feasible),
-                     'optimum':str(optimum) if optimum is not None else None,'status':result['status']})
-        print(name,route,result['status'],str(optimum),flush=True)
-output = Path(sys.argv[1])
-output.parent.mkdir(parents=True,exist_ok=True)
-output.write_text(json.dumps({'cases':len(cases),'projection_checks':sum(r['assignments'] for r in rows),
-                            'optimization_checks':len(rows),'seconds':time.monotonic()-start,'results':rows},indent=2))
-print('All projection and optimum comparisons passed.',flush=True)
+def main():
+    start = time.monotonic()
+    rows = []
+    for name,p in cases:
+        names = list(p['variables'])
+        points = [dict(zip(names,values)) for values in product(*(range(ceil(Fraction(str(v['lb']))),floor(Fraction(str(v['ub'])))+1) for v in p['variables'].values()))]
+        feasible = [point for point in points if all(satisfied(a,point) for a in p['constraints'])]
+        values = [evaluate(p['objective']['terms'],point) for point in feasible]
+        optimum = (max(values) if p['objective']['sense']=='max' else min(values)) if values else None
+        for route in ['milp','native']:
+            for point in points:
+                expected = point in feasible
+                model,_,_ = build_model(p,route,forced=point)
+                model.setRealParam('limits/time', 5)
+                model.optimize()
+                status = str(model.getStatus())
+                assert status in ('optimal','infeasible'),(name,route,point,status)
+                assert (status=='optimal')==expected,(name,route,point,status,expected)
+                model.freeProb()
+            result = solve(p,route,10)
+            assert result['status']==('UNSAT' if optimum is None else 'OPTIMAL'),(name,route,result)
+            if optimum is not None:
+                assert Fraction(result['objective_exact'])==optimum,(name,route,result,optimum)
+                assert result['verified']
+            rows.append({'case':name,'route':route,'assignments':len(points),'feasible':len(feasible),
+                         'optimum':str(optimum) if optimum is not None else None,'status':result['status']})
+            print(name,route,result['status'],str(optimum),flush=True)
+    output = Path(sys.argv[1])
+    output.parent.mkdir(parents=True,exist_ok=True)
+    output.write_text(json.dumps({'cases':len(cases),'projection_checks':sum(r['assignments'] for r in rows),
+                                'optimization_checks':len(rows),'seconds':time.monotonic()-start,'results':rows},indent=2))
+    print('All projection and optimum comparisons passed.',flush=True)
+
+
+if __name__ == '__main__':
+    main()
